@@ -71,6 +71,14 @@ export default function Science() {
         <section>
           <h2>Stars and constellation patterns</h2>
           <p>
+            Cinematic close-ups show a procedural plasma surface and corona for
+            the selected star. Color follows its catalog color index; surface
+            patterns, rotation, and representative radii are artistic and must
+            not be used for size comparisons. The Andromeda model uses 24,000
+            illustrative light points, a warm central bulge, and blue outer
+            arms.
+          </p>
+          <p>
             The Earth sky view contains 5,044 recorded star directions from the
             D3-Celestial catalog. The 3D view uses 10,426 stars from HYG v4.0:
             stars to magnitude 6.5, named stars, and a nearby sample within 20

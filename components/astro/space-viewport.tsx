@@ -40,6 +40,10 @@ type Props = {
   onSelect: (o: SpaceObject) => void;
   onDistance: (s: string) => void;
 };
+// Representative cinematic radii, deliberately separate from catalog measurements.
+const stellarDisplayRadius = (o: SpaceObject) =>
+  695700 *
+  (o.star && o.star.absMag < -3 ? 80 : o.star && o.star.absMag < 0 ? 8 : 1);
 const v = (a: Vec3) => new T.Vector3(...a);
 const planetVertex = `varying vec3 n; varying vec3 eye; varying vec2 tex; void main(){n=normalize(mat3(modelMatrix)*normal);eye=normalize(cameraPosition-(modelMatrix*vec4(position,1.)).xyz);tex=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`;
 const planetFragment = `uniform vec3 tint;uniform vec3 sunDir;uniform sampler2D surface;uniform float mapped;uniform float selfLit;uniform float cinema;uniform float earth;varying vec3 n;varying vec3 eye;varying vec2 tex;void main(){vec3 c=tint;if(mapped>.5)c=texture2D(surface,tex).rgb;vec3 normal=normalize(n);float day=max(dot(normal,sunDir),0.);float light=mix(.012+day*.95,.13+pow(day,.65)*1.08,cinema);vec3 result=c*mix(light,1.,selfLit);float rim=pow(1.-max(dot(normal,normalize(eye)),0.),3.);result+=vec3(.10,.30,.55)*rim*cinema*(1.-selfLit)*.35;float ocean=smoothstep(.015,.15,c.b-max(c.r,c.g));float spec=pow(max(dot(reflect(-sunDir,normal),normalize(eye)),0.),38.);result+=vec3(.6,.8,1.)*spec*ocean*earth*cinema*.5;gl_FragColor=vec4(result,1.);}`;
@@ -388,6 +392,38 @@ export default function SpaceViewport(props: Props) {
       line.name = c.id;
       guides.add(line);
     }
+    const stellarMaterial = new T.ShaderMaterial({
+      uniforms: {
+        time: { value: 0 },
+        color: { value: new T.Color('#ffd49b') },
+      },
+      vertexShader: `varying vec3 p;varying vec3 norm;varying vec3 eye;void main(){p=position;norm=normalize(normalMatrix*normal);vec4 mv=modelViewMatrix*vec4(position,1.);eye=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}`,
+      fragmentShader: `uniform float time;uniform vec3 color;varying vec3 p;varying vec3 norm;varying vec3 eye;
+      float hash(vec3 q){return fract(sin(dot(q,vec3(127.1,311.7,74.7)))*43758.5453);}
+      float noise(vec3 q){vec3 i=floor(q),f=fract(q);f=f*f*(3.-2.*f);return mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}
+      void main(){vec3 q=p*16.+vec3(time*.12,time*.07,0.);float cells=noise(q+noise(q*2.)*2.);float detail=noise(q*4.+time*.08);float limb=.45+.55*pow(max(dot(normalize(norm),normalize(eye)),0.),.35);float plasma=.55+cells*.65+detail*.25;vec3 c=mix(color*.55,vec3(1.,.97,.88),smoothstep(.42,.92,cells)*.55);gl_FragColor=vec4(c*plasma*limb,1.);}`,
+    });
+    const stellarSurface = new T.Mesh(
+      new T.SphereGeometry(1, 96, 64),
+      stellarMaterial,
+    );
+    scene.add(stellarSurface);
+    const stellarCorona = new T.Mesh(
+      new T.SphereGeometry(1.28, 64, 40),
+      new T.ShaderMaterial({
+        transparent: true,
+        side: T.BackSide,
+        depthWrite: false,
+        blending: T.AdditiveBlending,
+        uniforms: {
+          color: { value: new T.Color('#ffbb66') },
+          time: { value: 0 },
+        },
+        vertexShader: `varying vec3 n;varying vec3 eye;varying vec3 p;void main(){p=position;n=normalize(normalMatrix*normal);vec4 mv=modelViewMatrix*vec4(position,1.);eye=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}`,
+        fragmentShader: `uniform vec3 color;uniform float time;varying vec3 n;varying vec3 eye;varying vec3 p;void main(){float f=pow(1.-abs(dot(normalize(n),normalize(eye))),3.5);float filaments=.7+.15*sin(atan(p.z,p.x)*37.+sin(p.y*23.+time*.3));gl_FragColor=vec4(color,f*filaments*.5);}`,
+      }),
+    );
+    scene.add(stellarCorona);
     const deepMeshes = DEEP.map((o) => {
       let mesh: T.Object3D;
       if (o.type === 'Black hole') {
@@ -416,47 +452,59 @@ export default function SpaceViewport(props: Props) {
         tex.colorSpace = T.SRGBColorSpace;
         mesh = new T.Mesh(
           new T.PlaneGeometry(2, 2),
-          new T.MeshBasicMaterial({
-            map: tex,
+          new T.ShaderMaterial({
+            uniforms: { image: { value: tex } },
             side: T.DoubleSide,
             transparent: true,
-            opacity: 0.8,
             depthWrite: false,
+            blending: T.AdditiveBlending,
+            vertexShader: `varying vec2 tex;void main(){tex=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+            fragmentShader: `uniform sampler2D image;varying vec2 tex;void main(){vec3 c=texture2D(image,tex).rgb;vec2 edge=smoothstep(vec2(0.),vec2(.19),tex)*smoothstep(vec2(0.),vec2(.19),1.-tex);float glow=max(c.r,max(c.g,c.b));gl_FragColor=vec4(c,edge.x*edge.y*smoothstep(.015,.16,glow)*.9);}`,
           }),
         );
       } else {
-        const n = 9000,
+        const n = 24000,
           pts = new Float32Array(n * 3),
           colors = new Float32Array(n * 3);
         for (let i = 0; i < n; i++) {
-          const r = Math.sqrt((i * 0.61803398875) % 1);
+          const r = Math.pow((i * 0.61803398875) % 1, i % 4 === 0 ? 2.8 : 0.6);
           const spiral =
             (i % 2) * Math.PI + Math.log(r + 0.02) * 3 + Math.sin(i * 17) * 0.3;
           pts.set(
             [
               Math.cos(spiral) * r,
-              Math.sin(i * 19) * 0.015 * (1 - r),
+              Math.sin(i * 19) * (i % 4 === 0 ? 0.1 : 0.025) * Math.exp(-r * 4),
               Math.sin(spiral) * r * 0.65,
             ],
             i * 3,
           );
           const c = new T.Color().setRGB(
-            0.5 + r * 0.25,
-            0.5 + r * 0.22,
-            0.58 + r * 0.18,
+            1.0 - r * 0.5,
+            0.78 - r * 0.16,
+            0.48 + r * 0.5,
           );
           colors.set([c.r, c.g, c.b], i * 3);
         }
         const g = new T.BufferGeometry();
         g.setAttribute('position', new T.BufferAttribute(pts, 3));
-        g.setAttribute('color', new T.BufferAttribute(colors, 3));
+        g.setAttribute('tint', new T.BufferAttribute(colors, 3));
+        g.setAttribute(
+          'pointSize',
+          new T.BufferAttribute(
+            Float32Array.from(
+              { length: n },
+              (_, i) => (i % 13 === 0 ? 4.5 : 2.2) * renderer.getPixelRatio(),
+            ),
+            1,
+          ),
+        );
         mesh = new T.Points(
           g,
-          new T.PointsMaterial({
-            vertexColors: true,
-            size: 0.009,
+          new T.ShaderMaterial({
+            uniforms: { exposure: { value: 0.72 } },
+            vertexShader: starVertex,
+            fragmentShader: starFragment,
             transparent: true,
-            opacity: 0.7,
             depthWrite: false,
             blending: T.AdditiveBlending,
           }),
@@ -561,6 +609,7 @@ export default function SpaceViewport(props: Props) {
     scene.add(sunGlow);
     const held = new Set<string>();
     let lastCmd = -1,
+      lastCinematic = latest.current.cinematic,
       lastMode: Mode = 'space',
       lastDate = latest.current.date.getTime(),
       lastOrbitDate = lastDate,
@@ -589,7 +638,9 @@ export default function SpaceViewport(props: Props) {
                     ? 6.5
                     : 3.7
                   : 5)
-          : Math.max(0.08, (o.distanceLy ?? 1) * 0.015) * LY_KM,
+          : o.star && latest.current.cinematic
+            ? stellarDisplayRadius(o) * 4.5
+            : Math.max(0.08, (o.distanceLy ?? 1) * 0.015) * LY_KM,
       );
       if (o.body && o.id !== 'sun') {
         const sun = goalTarget.clone().normalize();
@@ -607,6 +658,10 @@ export default function SpaceViewport(props: Props) {
       const dt = Math.min(0.08, (time - lastTime) / 1000);
       lastTime = time;
       const blend = reduced ? 1 : 1 - Math.exp(-dt * 7);
+      if (p.cinematic !== lastCinematic) {
+        lastCinematic = p.cinematic;
+        if (p.selected.star && !p.light) fly(p.selected);
+      }
       if (p.date.getTime() !== lastDate) {
         lastDate = p.date.getTime();
         planetMeshes.forEach((r) => r.pos.copy(v(position(r.o, p.date))));
@@ -708,7 +763,13 @@ export default function SpaceViewport(props: Props) {
       skyFov += (goalSkyFov - skyFov) * blend;
       goalLogR = T.MathUtils.clamp(
         goalLogR,
-        Math.log(follow?.radiusKm ? follow.radiusKm * 1.1 : 200),
+        Math.log(
+          p.cinematic && p.selected.star && !p.light
+            ? stellarDisplayRadius(p.selected) * 1.4
+            : follow?.radiusKm
+              ? follow.radiusKm * 1.1
+              : 200,
+        ),
         Math.log(1e8 * LY_KM),
       );
       const radius = Math.exp(logR);
@@ -740,6 +801,27 @@ export default function SpaceViewport(props: Props) {
       (backdrop.material as T.ShaderMaterial).uniforms.exposure.value = twinkle;
       const cinematicScale = p.cinematic && !p.light;
 
+      const showSurface = solar && p.cinematic && !!p.selected.star && !p.light;
+      stellarSurface.visible = stellarCorona.visible = showSurface;
+      if (showSurface) {
+        const size = stellarDisplayRadius(p.selected) / radius;
+        stellarSurface.position
+          .copy(v(position(p.selected, p.date)))
+          .sub(target)
+          .divideScalar(radius);
+        stellarSurface.scale.setScalar(size);
+        stellarSurface.rotation.y = reduced ? 0 : time * 0.000035;
+        stellarCorona.position.copy(stellarSurface.position);
+        stellarCorona.scale.copy(stellarSurface.scale);
+        const col = new T.Color(starColor(p.selected.star!.bv));
+        stellarMaterial.uniforms.color.value.copy(col);
+        stellarMaterial.uniforms.time.value = reduced ? 0 : time * 0.001;
+        (stellarCorona.material as T.ShaderMaterial).uniforms.color.value.copy(
+          col,
+        );
+        (stellarCorona.material as T.ShaderMaterial).uniforms.time.value =
+          reduced ? 0 : time * 0.001;
+      }
       planetMeshes.forEach(({ o, mesh, mat, pos }) => {
         mesh.visible = solar;
         mesh.position.copy(pos).sub(target).divideScalar(radius);
@@ -825,16 +907,18 @@ export default function SpaceViewport(props: Props) {
             5;
           size.setX(
             i,
-            (mag > (p.cinematic ? 12 : 9)
+            (showSurface && p.selected.star === p.data.stars[i]
               ? 0
-              : Math.max(
-                  0,
-                  Math.min(
-                    34,
-                    (p.cinematic ? 3.5 : 2) +
-                      18 * Math.pow(10, -0.17 * (mag + 1.4)),
-                  ),
-                )) * renderer.getPixelRatio(),
+              : mag > (p.cinematic ? 12 : 9)
+                ? 0
+                : Math.max(
+                    0,
+                    Math.min(
+                      34,
+                      (p.cinematic ? 3.5 : 2) +
+                        18 * Math.pow(10, -0.17 * (mag + 1.4)),
+                    ),
+                  )) * renderer.getPixelRatio(),
           );
         }
         attr.needsUpdate = true;

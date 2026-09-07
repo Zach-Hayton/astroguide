@@ -676,6 +676,15 @@ export default function Explorer() {
               <p>{selected.subtitle}</p>
             </div>
             <p className="object-description">{selected.description}</p>
+            {selected.star && cinematic && (
+              <div className="model-note">
+                <p>
+                  Artistic stellar surface · Color follows the catalog color
+                  index. Surface detail, rotation, and displayed radius are
+                  illustrative.
+                </p>
+              </div>
+            )}
             <dl className="object-facts">
               {selected.facts.map(([k, val]) => (
                 <div key={k}>
