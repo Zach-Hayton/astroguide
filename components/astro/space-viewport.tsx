@@ -1,0 +1,1022 @@
+'use client';
+import { useEffect, useRef, useState } from 'react';
+import * as T from 'three';
+import { Body, RotationAxis } from 'astronomy-engine';
+import {
+  AU_KM,
+  LY_KM,
+  PLANETS,
+  DEEP,
+  equatorial,
+  position,
+  axis,
+  starColor,
+  starObject,
+  formatDistance,
+  type Dataset,
+  type SpaceObject,
+  type Mode,
+  type Vec3,
+} from '@/lib/astro/data';
+export type ViewCommand = {
+  serial: number;
+  type: 'object' | 'overview' | 'zoom' | 'light' | 'depth';
+  object?: SpaceObject;
+  factor?: number;
+  from?: Vec3;
+  to?: Vec3;
+};
+export type LightState = { from: Vec3; to: Vec3; progress: number } | null;
+type Props = {
+  data: Dataset;
+  selected: SpaceObject;
+  date: Date;
+  mode: Mode;
+  lines: boolean;
+  labels: boolean;
+  command: ViewCommand;
+  light: LightState;
+  onSelect: (o: SpaceObject) => void;
+  onDistance: (s: string) => void;
+};
+const v = (a: Vec3) => new T.Vector3(...a);
+const planetVertex = `varying vec3 n; varying vec2 tex; void main(){n=normalize(mat3(modelMatrix)*normal);tex=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`;
+const planetFragment = `uniform vec3 tint;uniform vec3 sunDir;uniform sampler2D surface;uniform float mapped;uniform float selfLit;varying vec3 n;varying vec2 tex;void main(){vec3 c=tint;if(mapped>.5)c=texture2D(surface,tex).rgb;float day=max(dot(normalize(n),sunDir),0.);float light=mix(.012+day*.95,1.,selfLit);gl_FragColor=vec4(c*light,1.);}`;
+const starVertex = `attribute float pointSize;attribute vec3 tint;varying vec3 col;void main(){col=tint;vec4 mv=modelViewMatrix*vec4(position,1.);gl_Position=projectionMatrix*mv;gl_PointSize=pointSize;}`;
+const starFragment = `varying vec3 col;void main(){float r=length(gl_PointCoord-vec2(.5))*2.;if(r>1.)discard;float a=exp(-r*r*7.)*.55+exp(-r*r*55.);gl_FragColor=vec4(col,a);}`;
+export default function SpaceViewport(props: Props) {
+  const host = useRef<HTMLDivElement>(null),
+    latest = useRef(props);
+  latest.current = props;
+  const [error, setError] = useState('');
+  useEffect(() => {
+    if (!host.current) return;
+    const root = host.current;
+    let renderer: T.WebGLRenderer;
+    try {
+      renderer = new T.WebGLRenderer({
+        antialias: true,
+        alpha: false,
+        logarithmicDepthBuffer: true,
+        powerPreference: 'high-performance',
+      });
+    } catch {
+      setError(
+        'Your browser could not start the 3D view. Enable hardware acceleration, then reload. You can still search objects and read their details.',
+      );
+      return;
+    }
+    renderer.setClearColor('#03070d');
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
+    renderer.outputColorSpace = T.SRGBColorSpace;
+    root.appendChild(renderer.domElement);
+    renderer.domElement.setAttribute(
+      'aria-label',
+      'Interactive 3D astronomy view. Drag to rotate, scroll to zoom, shift-drag to pan.',
+    );
+    renderer.domElement.tabIndex = 0;
+    const scene = new T.Scene(),
+      camera = new T.PerspectiveCamera(48, 1, 0.00000001, 1e24);
+    const overlay = document.createElement('div');
+    overlay.className = 'space-labels';
+    root.appendChild(overlay);
+    let width = 1,
+      height = 1;
+    const resize = () => {
+      width = root.clientWidth;
+      height = root.clientHeight;
+      renderer.setSize(width, height);
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+    };
+    const observer = new ResizeObserver(resize);
+    observer.observe(root);
+    resize();
+    const startObj = PLANETS.find((o) => o.id === 'earth')!;
+    let target = v(position(startObj, latest.current.date)),
+      goalTarget = target.clone(),
+      logR = Math.log(32000),
+      goalLogR = logR;
+    let theta = 0.5,
+      phi = 1.2,
+      goalTheta = theta,
+      goalPhi = phi;
+    let skyRA = (83.8 * Math.PI) / 180,
+      skyDec = 0,
+      skyFov = 65,
+      goalSkyFov = 65;
+    let follow: SpaceObject | null = startObj;
+    const sphere = new T.SphereGeometry(1, 64, 40);
+    const loader = new T.TextureLoader();
+    const textures: T.Texture[] = [];
+    let disposed = false;
+    const planetMeshes = PLANETS.map((o) => {
+      const mat = new T.ShaderMaterial({
+        vertexShader: planetVertex,
+        fragmentShader: planetFragment,
+        uniforms: {
+          tint: { value: new T.Color(o.color) },
+          sunDir: { value: new T.Vector3(1, 0, 0) },
+          surface: { value: null },
+          mapped: { value: 0 },
+          selfLit: { value: o.id === 'sun' ? 1 : 0 },
+        },
+      });
+      const mesh = new T.Mesh(sphere, mat);
+      scene.add(mesh);
+      const texture = loader.load(
+        '/assets/' + o.id + '-map.jpg',
+        (t) => {
+          if (disposed) {
+            t.dispose();
+            return;
+          }
+          t.colorSpace = T.SRGBColorSpace;
+          t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+          mat.uniforms.surface.value = t;
+          mat.uniforms.mapped.value = 1;
+        },
+        undefined,
+        () => {},
+      );
+      textures.push(texture);
+      return { o, mesh, mat, pos: v(position(o, latest.current.date)) };
+    });
+    const atmosphere = new T.Mesh(
+      new T.SphereGeometry(1.025, 64, 40),
+      new T.ShaderMaterial({
+        transparent: true,
+        side: T.BackSide,
+        depthWrite: false,
+        blending: T.AdditiveBlending,
+        vertexShader: `varying vec3 n;varying vec3 eye;void main(){n=normalize(normalMatrix*normal);vec4 mv=modelViewMatrix*vec4(position,1.);eye=normalize(-mv.xyz);gl_Position=projectionMatrix*mv;}`,
+        fragmentShader: `varying vec3 n;varying vec3 eye;void main(){float f=pow(1.-abs(dot(normalize(n),normalize(eye))),3.);gl_FragColor=vec4(.15,.47,.95,f*.35);}`,
+      }),
+    );
+    scene.add(atmosphere);
+    const ring = new T.Mesh(
+      new T.RingGeometry(1.24, 2.32, 128),
+      new T.MeshBasicMaterial({
+        color: '#ac9b78',
+        side: T.DoubleSide,
+        transparent: true,
+        opacity: 0.6,
+      }),
+    );
+    scene.add(ring);
+    const orbitGroup = new T.Group();
+    scene.add(orbitGroup);
+    let orbitRecords: { line: T.Line; coords: Vec3[]; parent?: string }[] = [];
+    const buildOrbits = (date: Date) => {
+      orbitRecords.forEach((r) => {
+        r.line.geometry.dispose();
+        (r.line.material as T.Material).dispose();
+      });
+      orbitGroup.clear();
+      orbitRecords = [];
+      for (const o of PLANETS) {
+        if (!o.periodDays) continue;
+        const coords = Array.from({ length: 181 }, (_, i) => {
+          const when = new Date(
+            date.getTime() + (o.periodDays! * 86400000 * i) / 180,
+          );
+          const p = position(o, when);
+          if (o.id === 'moon') {
+            const e = position(startObj, when);
+            return p.map((x, k) => x - e[k]) as Vec3;
+          }
+          return p;
+        });
+        const geometry = new T.BufferGeometry();
+        geometry.setAttribute(
+          'position',
+          new T.Float32BufferAttribute(new Float32Array(coords.length * 3), 3),
+        );
+        const line = new T.Line(
+          geometry,
+          new T.LineBasicMaterial({
+            color: o.id === 'earth' ? '#4d9491' : '#385169',
+            transparent: true,
+            opacity: o.id === 'earth' ? 0.35 : 0.18,
+            depthWrite: false,
+          }),
+        );
+        orbitGroup.add(line);
+        orbitRecords.push({
+          line,
+          coords,
+          parent: o.id === 'moon' ? 'earth' : undefined,
+        });
+      }
+    };
+    buildOrbits(latest.current.date);
+    const starCoords = props.data.stars.map((s) =>
+      equatorial(s.ra, s.dec, s.distanceLy * LY_KM),
+    );
+    const skyCoords = props.data.sky.map((s) =>
+      equatorial(s.geometry.coordinates[0], s.geometry.coordinates[1], 10),
+    );
+    function makePoints(count: number) {
+      const geometry = new T.BufferGeometry();
+      geometry.setAttribute(
+        'position',
+        new T.BufferAttribute(new Float32Array(count * 3), 3),
+      );
+      geometry.setAttribute(
+        'pointSize',
+        new T.BufferAttribute(new Float32Array(count), 1),
+      );
+      geometry.setAttribute(
+        'tint',
+        new T.BufferAttribute(new Float32Array(count * 3), 3),
+      );
+      const material = new T.ShaderMaterial({
+        vertexShader: starVertex,
+        fragmentShader: starFragment,
+        transparent: true,
+        depthWrite: false,
+        blending: T.AdditiveBlending,
+      });
+      const points = new T.Points(geometry, material);
+      points.frustumCulled = false;
+      scene.add(points);
+      return points;
+    }
+    const stars = makePoints(props.data.stars.length),
+      skyStars = makePoints(props.data.sky.length);
+    props.data.stars.forEach((s, i) => {
+      const c = new T.Color(starColor(s.bv));
+      (stars.geometry.attributes.tint as T.BufferAttribute).setXYZ(
+        i,
+        c.r,
+        c.g,
+        c.b,
+      );
+    });
+    props.data.sky.forEach((s, i) => {
+      const c = new T.Color(starColor(Number(s.properties.bv)));
+      (skyStars.geometry.attributes.tint as T.BufferAttribute).setXYZ(
+        i,
+        c.r,
+        c.g,
+        c.b,
+      );
+      (skyStars.geometry.attributes.position as T.BufferAttribute).setXYZ(
+        i,
+        ...skyCoords[i],
+      );
+      (skyStars.geometry.attributes.pointSize as T.BufferAttribute).setX(
+        i,
+        Math.min(20, 3 + 16 * Math.pow(10, -0.17 * (s.properties.mag + 1.4))) *
+          renderer.getPixelRatio(),
+      );
+    });
+    const guides = new T.Group();
+    scene.add(guides);
+    for (const c of props.data.lines) {
+      const pts: number[] = [];
+      for (const chain of c.geometry.coordinates) {
+        for (let i = 1; i < chain.length; i++) {
+          // Interpolate along the celestial sphere rather than cutting long chords.
+          const a = v(equatorial(...chain[i - 1], 9.9)),
+            b = v(equatorial(...chain[i], 9.9));
+          for (let k = 0; k < 8; k++) {
+            pts.push(
+              ...a
+                .clone()
+                .lerp(b, k / 8)
+                .normalize()
+                .multiplyScalar(9.9)
+                .toArray(),
+              ...a
+                .clone()
+                .lerp(b, (k + 1) / 8)
+                .normalize()
+                .multiplyScalar(9.9)
+                .toArray(),
+            );
+          }
+        }
+      }
+      const g = new T.BufferGeometry();
+      g.setAttribute('position', new T.Float32BufferAttribute(pts, 3));
+      const line = new T.LineSegments(
+        g,
+        new T.LineBasicMaterial({
+          color: '#6facc1',
+          opacity: 0.33,
+          transparent: true,
+          depthWrite: false,
+        }),
+      );
+      line.name = c.id;
+      guides.add(line);
+    }
+    const deepMeshes = DEEP.map((o) => {
+      let mesh: T.Object3D;
+      if (o.type === 'Black hole') {
+        const group = new T.Group();
+        group.add(
+          new T.Mesh(sphere, new T.MeshBasicMaterial({ color: '#000000' })),
+        );
+        const disk = new T.Mesh(
+          new T.RingGeometry(2.7, 12, 160, 1),
+          new T.ShaderMaterial({
+            side: T.DoubleSide,
+            transparent: true,
+            depthWrite: false,
+            blending: T.AdditiveBlending,
+            uniforms: { time: { value: 0 } },
+            vertexShader: `varying vec3 p;void main(){p=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+            fragmentShader: `uniform float time;varying vec3 p;void main(){float r=length(p.xy);float a=atan(p.y,p.x);float bands=.7+.15*sin(r*17.+sin(a*8.+time)*.35)+.12*sin(r*53.);float alpha=smoothstep(2.7,3.1,r)*(1.-smoothstep(3.,12.,r));vec3 c=mix(vec3(1.,.92,.65),vec3(.9,.23,.035),clamp((r-3.)/7.,0.,1.));gl_FragColor=vec4(c,bands*alpha);}`,
+          }),
+        );
+        disk.rotation.x = Math.PI / 2;
+        group.add(disk);
+        mesh = group;
+      } else if (o.image) {
+        const tex = loader.load(o.image);
+        textures.push(tex);
+        tex.colorSpace = T.SRGBColorSpace;
+        mesh = new T.Mesh(
+          new T.PlaneGeometry(2, 2),
+          new T.MeshBasicMaterial({
+            map: tex,
+            side: T.DoubleSide,
+            transparent: true,
+            opacity: 0.8,
+            depthWrite: false,
+          }),
+        );
+      } else {
+        const n = 9000,
+          pts = new Float32Array(n * 3),
+          colors = new Float32Array(n * 3);
+        for (let i = 0; i < n; i++) {
+          const r = Math.sqrt((i * 0.61803398875) % 1);
+          const spiral =
+            (i % 2) * Math.PI + Math.log(r + 0.02) * 3 + Math.sin(i * 17) * 0.3;
+          pts.set(
+            [
+              Math.cos(spiral) * r,
+              Math.sin(i * 19) * 0.015 * (1 - r),
+              Math.sin(spiral) * r * 0.65,
+            ],
+            i * 3,
+          );
+          const c = new T.Color().setRGB(
+            0.5 + r * 0.25,
+            0.5 + r * 0.22,
+            0.58 + r * 0.18,
+          );
+          colors.set([c.r, c.g, c.b], i * 3);
+        }
+        const g = new T.BufferGeometry();
+        g.setAttribute('position', new T.BufferAttribute(pts, 3));
+        g.setAttribute('color', new T.BufferAttribute(colors, 3));
+        mesh = new T.Points(
+          g,
+          new T.PointsMaterial({
+            vertexColors: true,
+            size: 0.009,
+            transparent: true,
+            opacity: 0.7,
+            depthWrite: false,
+            blending: T.AdditiveBlending,
+          }),
+        );
+        mesh.rotation.z = 0.4;
+      }
+      scene.add(mesh);
+      return { o, mesh, pos: v(position(o, latest.current.date)) };
+    });
+    const pulseGeo = new T.BufferGeometry().setFromPoints([
+      new T.Vector3(),
+      new T.Vector3(),
+    ]);
+    const pulseLine = new T.Line(
+      pulseGeo,
+      new T.LineBasicMaterial({
+        color: '#b6eadc',
+        transparent: true,
+        opacity: 0.55,
+      }),
+    );
+    scene.add(pulseLine);
+    const pulse = makePoints(1);
+    (pulse.geometry.attributes.tint as T.BufferAttribute).setXYZ(
+      0,
+      0.8,
+      1,
+      0.9,
+    );
+    (pulse.geometry.attributes.pointSize as T.BufferAttribute).setX(
+      0,
+      28 * renderer.getPixelRatio(),
+    );
+    const labelMap = new Map<string, HTMLButtonElement>();
+    const candidates: SpaceObject[] = [
+      ...PLANETS,
+      ...DEEP,
+      ...props.data.stars
+        .filter((s) => s.named && s.mag < 1.5)
+        .slice(0, 25)
+        .map(starObject),
+    ];
+    const addLabel = (o: SpaceObject) => {
+      if (labelMap.has(o.id)) return;
+      const el = document.createElement('button');
+      el.className = 'space-label';
+      el.textContent = o.name;
+      el.onclick = () => latest.current.onSelect(o);
+      overlay.appendChild(el);
+      labelMap.set(o.id, el);
+    };
+    candidates.forEach(addLabel);
+    props.data.constellations.forEach((c) => {
+      const o = {
+        id: 'con-' + c.id,
+        name: c.properties.name,
+        type: 'Constellation',
+        ra: c.geometry.coordinates[0],
+        dec: c.geometry.coordinates[1],
+      } as SpaceObject;
+      addLabel(o);
+      labelMap.get(o.id)!.onclick = () => {
+        const full = latest.current.data.constellations.find(
+          (x) => x.id === c.id,
+        );
+        if (full) {
+          import('@/lib/astro/data').then((m) =>
+            latest.current.onSelect(m.constellationObject(full)),
+          );
+        }
+      };
+    });
+    scene.traverse((obj) => {
+      if ('material' in obj) {
+        const m = obj.material;
+        if (m instanceof T.ShaderMaterial) {
+          m.vertexShader =
+            '#include <logdepthbuf_pars_vertex>\n' +
+            m.vertexShader.replace(
+              /}\s*$/,
+              '\n#include <logdepthbuf_vertex>\n}',
+            );
+          m.fragmentShader =
+            '#include <logdepthbuf_pars_fragment>\n' +
+            m.fragmentShader.replace(
+              /}\s*$/,
+              '\n#include <logdepthbuf_fragment>\n}',
+            );
+        }
+      }
+    });
+    const sunGlow = new T.Mesh(
+      new T.SphereGeometry(1.13, 48, 32),
+      (atmosphere.material as T.ShaderMaterial).clone(),
+    );
+    (sunGlow.material as T.ShaderMaterial).fragmentShader = (
+      sunGlow.material as T.ShaderMaterial
+    ).fragmentShader.replace(
+      'vec4(.15,.47,.95,f*.35)',
+      'vec4(1.,.58,.15,f*.65)',
+    );
+    scene.add(sunGlow);
+    const held = new Set<string>();
+    let lastCmd = -1,
+      lastMode: Mode = 'space',
+      lastDate = latest.current.date.getTime(),
+      lastOrbitDate = lastDate,
+      frame = 0,
+      raf = 0,
+      lastTime = performance.now();
+    const reduced = window.matchMedia(
+      '(prefers-reduced-motion: reduce)',
+    ).matches;
+    function fly(o: SpaceObject) {
+      if (latest.current.mode === 'sky') {
+        skyRA = ((o.ra ?? 83.8) * Math.PI) / 180;
+        skyDec = ((o.dec ?? 0) * Math.PI) / 180;
+        goalSkyFov = o.type === 'Constellation' ? 55 : 30;
+        return;
+      }
+      follow = o.body ? o : null;
+      goalTarget.copy(v(position(o, latest.current.date)));
+      goalLogR = Math.log(
+        o.radiusKm
+          ? o.radiusKm * (o.type === 'Black hole' ? 38 : 5)
+          : Math.max(0.08, (o.distanceLy ?? 1) * 0.015) * LY_KM,
+      );
+      if (o.body && o.id !== 'sun') {
+        const sun = goalTarget.clone().normalize();
+        goalTheta = Math.atan2(-sun.x, -sun.z) + 0.65;
+        goalPhi = 1.25;
+      } else {
+        goalTheta = 0.6;
+        goalPhi = 1.15;
+      }
+    }
+    function animate(time: number) {
+      if (disposed) return;
+      raf = requestAnimationFrame(animate);
+      const p = latest.current;
+      const dt = Math.min(0.08, (time - lastTime) / 1000);
+      lastTime = time;
+      const blend = reduced ? 1 : 1 - Math.exp(-dt * 7);
+      if (p.date.getTime() !== lastDate) {
+        lastDate = p.date.getTime();
+        planetMeshes.forEach((r) => r.pos.copy(v(position(r.o, p.date))));
+        if (Math.abs(lastDate - lastOrbitDate) > 86400000 * 30) {
+          buildOrbits(p.date);
+          lastOrbitDate = lastDate;
+        }
+      }
+      if (p.mode !== lastMode) {
+        lastMode = p.mode;
+        if (p.mode === 'sky') {
+          skyRA = ((p.selected.ra ?? 83.8) * Math.PI) / 180;
+          skyDec = ((p.selected.dec ?? 0) * Math.PI) / 180;
+          goalSkyFov = 65;
+        } else fly(p.selected.type === 'Constellation' ? startObj : p.selected);
+      }
+      if (p.command.serial !== lastCmd) {
+        lastCmd = p.command.serial;
+        const cmd = p.command;
+        if (cmd.type === 'object' && cmd.object) fly(cmd.object);
+        if (cmd.type === 'zoom') {
+          if (p.mode === 'sky')
+            goalSkyFov = T.MathUtils.clamp(
+              goalSkyFov * (cmd.factor ?? 1),
+              2,
+              100,
+            );
+          else
+            goalLogR = T.MathUtils.clamp(
+              goalLogR + Math.log(cmd.factor ?? 1),
+              Math.log(200),
+              Math.log(1e8 * LY_KM),
+            );
+        }
+        if (cmd.type === 'overview') {
+          follow = null;
+          goalTarget.set(0, 0, 0);
+          goalLogR = Math.log(65 * AU_KM);
+          goalTheta = 0.35;
+          goalPhi = 0.5;
+        }
+        if (cmd.type === 'light' && cmd.from && cmd.to) {
+          follow = null;
+          const a = v(cmd.from),
+            b = v(cmd.to);
+          goalTarget.copy(a).lerp(b, 0.5);
+          goalLogR = Math.log(a.distanceTo(b) * 1.5);
+          const dir = b.clone().sub(a).normalize(),
+            side = new T.Vector3(-dir.z, 0.35, dir.x).normalize();
+          goalTheta = Math.atan2(side.x, side.z);
+          goalPhi = Math.acos(side.y);
+        }
+        if (cmd.type === 'depth' && cmd.object) {
+          follow = null;
+          const con = cmd.object.id.slice(4).replace(/\d/g, '');
+          const group = p.data.stars.filter(
+            (s) => s.constellation === con && s.mag < 6.5,
+          );
+          if (group.length) {
+            goalTarget.set(0, 0, 0);
+            group.forEach((s) =>
+              goalTarget.add(v(equatorial(s.ra, s.dec, s.distanceLy * LY_KM))),
+            );
+            goalTarget.multiplyScalar(1 / group.length);
+            goalLogR = Math.log(
+              Math.max(
+                20 * LY_KM,
+                ...group.map((s) =>
+                  v(equatorial(s.ra, s.dec, s.distanceLy * LY_KM)).distanceTo(
+                    goalTarget,
+                  ),
+                ),
+              ) * 1.8,
+            );
+            goalTheta = 0.2;
+            goalPhi = 1.2;
+          }
+        }
+      }
+      if (p.mode === 'space' && held.size) {
+        follow = null;
+        const forward = camera.getWorldDirection(new T.Vector3()),
+          right = new T.Vector3().setFromMatrixColumn(camera.matrixWorld, 0);
+        const pace = Math.exp(logR) * dt * 0.65;
+        const a = Number(held.has('w')) - Number(held.has('s')),
+          b = Number(held.has('d')) - Number(held.has('a')),
+          c = Number(held.has('e')) - Number(held.has('q'));
+        goalTarget
+          .addScaledVector(forward, a * pace)
+          .addScaledVector(right, b * pace);
+        goalTarget.y += c * pace;
+      }
+      if (follow && p.mode === 'space')
+        goalTarget.copy(v(position(follow, p.date)));
+      target.lerp(goalTarget, blend);
+      logR += (goalLogR - logR) * blend;
+      theta += (goalTheta - theta) * blend;
+      phi += (goalPhi - phi) * blend;
+      skyFov += (goalSkyFov - skyFov) * blend;
+      goalLogR = T.MathUtils.clamp(
+        goalLogR,
+        Math.log(follow?.radiusKm ? follow.radiusKm * 1.1 : 200),
+        Math.log(1e8 * LY_KM),
+      );
+      const radius = Math.exp(logR);
+      if (p.mode === 'sky') {
+        camera.position.set(0, 0, 0);
+        camera.fov = skyFov;
+        camera.lookAt(
+          ...equatorial((skyRA * 180) / Math.PI, (skyDec * 180) / Math.PI, 1),
+        );
+      } else {
+        camera.position.set(
+          Math.sin(phi) * Math.sin(theta),
+          Math.cos(phi),
+          Math.sin(phi) * Math.cos(theta),
+        );
+        camera.fov = 48;
+        camera.lookAt(0, 0, 0);
+      }
+      camera.updateProjectionMatrix();
+      camera.updateMatrixWorld();
+      const solar = p.mode === 'space';
+      planetMeshes.forEach(({ o, mesh, mat, pos }) => {
+        mesh.visible = solar;
+        mesh.position.copy(pos).sub(target).divideScalar(radius);
+        mesh.scale.setScalar(o.radiusKm! / radius);
+        if (o.body) {
+          const pole = v(axis(o, p.date)).normalize();
+          mesh.quaternion.setFromUnitVectors(new T.Vector3(0, 1, 0), pole);
+          const angle = (RotationAxis(o.body, p.date).spin * Math.PI) / 180;
+          mesh.rotateY(angle);
+        }
+        mat.uniforms.sunDir.value.copy(pos).negate().normalize();
+      });
+      const earth = planetMeshes.find((x) => x.o.id === 'earth')!,
+        saturn = planetMeshes.find((x) => x.o.id === 'saturn')!;
+      sunGlow.visible = solar;
+      sunGlow.position.copy(planetMeshes[0].mesh.position);
+      sunGlow.scale.copy(planetMeshes[0].mesh.scale);
+      atmosphere.visible = solar;
+      atmosphere.position.copy(earth.mesh.position);
+      atmosphere.scale.copy(earth.mesh.scale);
+      ring.visible = solar;
+      ring.position.copy(saturn.mesh.position);
+      ring.scale.copy(saturn.mesh.scale);
+      ring.quaternion.setFromUnitVectors(
+        new T.Vector3(0, 0, 1),
+        v(axis(saturn.o, p.date)).normalize(),
+      );
+      orbitGroup.visible = solar && p.lines;
+      for (const r of orbitRecords) {
+        const attr = r.line.geometry.attributes.position as T.BufferAttribute;
+        for (let i = 0; i < r.coords.length; i++) {
+          const coord = r.coords[i];
+          attr.setXYZ(
+            i,
+            (coord[0] + (r.parent ? earth.pos.x : 0) - target.x) / radius,
+            (coord[1] + (r.parent ? earth.pos.y : 0) - target.y) / radius,
+            (coord[2] + (r.parent ? earth.pos.z : 0) - target.z) / radius,
+          );
+        }
+        attr.needsUpdate = true;
+        r.line.frustumCulled = false;
+      }
+      stars.visible = solar;
+      skyStars.visible = !solar;
+      guides.visible = !solar && p.lines;
+      guides.children.forEach((c) => {
+        (c as T.Line).material instanceof T.LineBasicMaterial &&
+          (((c as T.Line).material as T.LineBasicMaterial).opacity =
+            'con-' + c.name === p.selected.id ? 0.8 : 0.27);
+      });
+      if (solar) {
+        const attr = stars.geometry.attributes.position as T.BufferAttribute,
+          size = stars.geometry.attributes.pointSize as T.BufferAttribute;
+        for (let i = 0; i < starCoords.length; i++) {
+          const xyz = starCoords[i];
+          const x = (xyz[0] - target.x) / radius,
+            y = (xyz[1] - target.y) / radius,
+            z = (xyz[2] - target.z) / radius;
+          attr.setXYZ(i, x, y, z);
+          const distPc =
+            (Math.hypot(
+              x - camera.position.x,
+              y - camera.position.y,
+              z - camera.position.z,
+            ) *
+              radius) /
+            (LY_KM * 3.261563777);
+          const mag =
+            p.data.stars[i].absMag +
+            5 * Math.log10(Math.max(0.000001, distPc)) -
+            5;
+          size.setX(
+            i,
+            (mag > 9
+              ? 0
+              : Math.max(
+                  0,
+                  Math.min(30, 2 + 16 * Math.pow(10, -0.17 * (mag + 1.4))),
+                )) * renderer.getPixelRatio(),
+          );
+        }
+        attr.needsUpdate = true;
+        size.needsUpdate = true;
+      }
+      deepMeshes.forEach(({ o, mesh, pos }) => {
+        mesh.visible = solar;
+        mesh.position.copy(pos).sub(target).divideScalar(radius);
+        mesh.scale.setScalar(o.radiusKm! / radius);
+        if (o.type === 'Nebula') mesh.quaternion.copy(camera.quaternion);
+        if (o.type === 'Black hole') {
+          const disk = mesh.children[1] as T.Mesh;
+          (disk.material as T.ShaderMaterial).uniforms.time.value =
+            time * 0.00004;
+        }
+      });
+      pulse.visible = !!p.light && solar;
+      pulseLine.visible = !!p.light && solar;
+      if (p.light) {
+        const a = v(p.light.from).sub(target).divideScalar(radius),
+          b = v(p.light.to).sub(target).divideScalar(radius);
+        const pa = pulseLine.geometry.attributes.position as T.BufferAttribute;
+        pa.setXYZ(0, ...(a.toArray() as Vec3));
+        pa.setXYZ(1, ...(b.toArray() as Vec3));
+        pa.needsUpdate = true;
+        const point = a.lerp(b, p.light.progress);
+        (pulse.geometry.attributes.position as T.BufferAttribute).setXYZ(
+          0,
+          point.x,
+          point.y,
+          point.z,
+        );
+        pulse.geometry.attributes.position.needsUpdate = true;
+        pulseLine.frustumCulled = false;
+      }
+      if (frame++ % 3 === 0) {
+        labelMap.forEach((el) => (el.style.display = 'none'));
+        if (p.labels) {
+          addLabel(p.selected);
+          const show =
+            p.mode === 'sky'
+              ? [
+                  ...p.data.constellations.map(
+                    (c) =>
+                      ({
+                        id: 'con-' + c.id,
+                        name: c.properties.name,
+                        type: 'Constellation',
+                        ra: c.geometry.coordinates[0],
+                        dec: c.geometry.coordinates[1],
+                      }) as SpaceObject,
+                  ),
+                  ...candidates.filter((o) => o.star || o.distanceLy),
+                ]
+              : [
+                  p.selected,
+                  ...candidates.filter((o) => o.id !== p.selected.id),
+                ];
+          const occupied: { x: number; y: number }[] = [];
+          for (const o of show) {
+            const el = labelMap.get(o.id);
+            if (!el) continue;
+            const point =
+              p.mode === 'sky'
+                ? v(equatorial(o.ra ?? 0, o.dec ?? 0, 9.8))
+                : v(position(o, p.date)).sub(target).divideScalar(radius);
+            if (p.mode === 'space' && o.type === 'Constellation') continue;
+            const forward = point
+              .clone()
+              .sub(camera.position)
+              .dot(camera.getWorldDirection(new T.Vector3()));
+            if (forward <= 0) continue;
+            point.project(camera);
+            const x = (point.x * 0.5 + 0.5) * width,
+              y = (-point.y * 0.5 + 0.5) * height;
+            if (x < 12 || x > width - 80 || y < 18 || y > height - 25) continue;
+            if (
+              occupied.some(
+                (a) => Math.abs(a.x - x) < 90 && Math.abs(a.y - y) < 28,
+              )
+            )
+              continue;
+            occupied.push({ x, y });
+            el.style.display = 'block';
+            el.style.transform = `translate(${x + 9}px,${y - 7}px)`;
+            el.classList.toggle('selected', o.id === p.selected.id);
+            el.classList.toggle(
+              'constellation-label',
+              o.type === 'Constellation',
+            );
+          }
+        }
+        p.onDistance(
+          p.mode === 'sky'
+            ? skyFov.toFixed(0) + '° field of view'
+            : formatDistance(radius) + ' from focus',
+        );
+      }
+      renderer.render(scene, camera);
+    }
+    raf = requestAnimationFrame(animate);
+    let drag = false,
+      dx = 0,
+      dy = 0,
+      moved = 0,
+      pan = false;
+    function down(e: PointerEvent) {
+      renderer.domElement.focus({ preventScroll: true });
+      drag = true;
+      dx = e.clientX;
+      dy = e.clientY;
+      moved = 0;
+      pan = e.shiftKey || e.button === 2;
+      renderer.domElement.setPointerCapture(e.pointerId);
+    }
+    function move(e: PointerEvent) {
+      if (!drag) return;
+      const x = e.clientX - dx,
+        y = e.clientY - dy;
+      dx = e.clientX;
+      dy = e.clientY;
+      moved += Math.abs(x) + Math.abs(y);
+      if (latest.current.mode === 'sky') {
+        skyRA -= (x * 0.0025 * skyFov) / 60;
+        skyDec = T.MathUtils.clamp(
+          skyDec + (y * 0.0025 * skyFov) / 60,
+          -1.55,
+          1.55,
+        );
+      } else if (pan) {
+        follow = null;
+        const right = new T.Vector3().setFromMatrixColumn(
+            camera.matrixWorld,
+            0,
+          ),
+          up = new T.Vector3().setFromMatrixColumn(camera.matrixWorld, 1);
+        goalTarget
+          .addScaledVector(right, (-x * Math.exp(logR)) / height)
+          .addScaledVector(up, (y * Math.exp(logR)) / height);
+      } else {
+        goalTheta -= x * 0.005;
+        goalPhi = T.MathUtils.clamp(goalPhi - y * 0.005, 0.03, Math.PI - 0.03);
+      }
+    }
+    function up(e: PointerEvent) {
+      drag = false;
+      if (moved > 5) return;
+      const rect = renderer.domElement.getBoundingClientRect(),
+        mx = e.clientX - rect.left,
+        my = e.clientY - rect.top;
+      let best = 10,
+        chosen: SpaceObject | undefined;
+      for (let i = 0; i < latest.current.data.stars.length; i++) {
+        const s = latest.current.data.stars[i];
+        if (latest.current.mode === 'sky' && s.mag > 6.5) continue;
+        const point =
+          latest.current.mode === 'sky'
+            ? v(equatorial(s.ra, s.dec, 10))
+            : v(starCoords[i]).sub(target).divideScalar(Math.exp(logR));
+        if (
+          point
+            .clone()
+            .sub(camera.position)
+            .dot(camera.getWorldDirection(new T.Vector3())) <= 0
+        )
+          continue;
+        point.project(camera);
+        const d = Math.hypot(
+          (point.x * 0.5 + 0.5) * width - mx,
+          (-point.y * 0.5 + 0.5) * height - my,
+        );
+        if (d < best) {
+          best = d;
+          chosen = starObject(s);
+        }
+      }
+      if (chosen) latest.current.onSelect(chosen);
+    }
+    function wheel(e: WheelEvent) {
+      e.preventDefault();
+      const delta = T.MathUtils.clamp(e.deltaY, -140, 140);
+      if (latest.current.mode === 'sky')
+        goalSkyFov = T.MathUtils.clamp(
+          goalSkyFov * Math.exp(delta * 0.0017),
+          2,
+          100,
+        );
+      else
+        goalLogR = T.MathUtils.clamp(
+          goalLogR + delta * 0.007,
+          Math.log(
+            latest.current.selected.radiusKm
+              ? latest.current.selected.radiusKm * 1.08
+              : 200,
+          ),
+          Math.log(1e8 * LY_KM),
+        );
+    }
+    function key(e: KeyboardEvent) {
+      if (['w', 'a', 's', 'd', 'q', 'e'].includes(e.key.toLowerCase())) {
+        held.add(e.key.toLowerCase());
+        e.preventDefault();
+      }
+      if (
+        [
+          '=',
+          '+',
+          '-',
+          'ArrowLeft',
+          'ArrowRight',
+          'ArrowUp',
+          'ArrowDown',
+        ].includes(e.key)
+      )
+        e.preventDefault();
+      if (e.key === '+' || e.key === '=') {
+        goalLogR -= 0.6;
+        goalSkyFov = Math.max(2, goalSkyFov * 0.8);
+      }
+      if (e.key === '-') {
+        goalLogR += 0.6;
+        goalSkyFov = Math.min(100, goalSkyFov * 1.2);
+      }
+      if (e.key === 'ArrowLeft') {
+        goalTheta += 0.1;
+        skyRA += 0.1;
+      }
+      if (e.key === 'ArrowRight') {
+        goalTheta -= 0.1;
+        skyRA -= 0.1;
+      }
+      if (e.key === 'ArrowUp') {
+        goalPhi = Math.max(0.03, goalPhi - 0.1);
+        skyDec = Math.min(1.55, skyDec + 0.1);
+      }
+      if (e.key === 'ArrowDown') {
+        goalPhi = Math.min(Math.PI - 0.03, goalPhi + 0.1);
+        skyDec = Math.max(-1.55, skyDec - 0.1);
+      }
+    }
+    const el = renderer.domElement;
+    el.addEventListener('pointerdown', down);
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', up);
+    el.addEventListener('pointercancel', () => (drag = false));
+    el.addEventListener('wheel', wheel, { passive: false });
+    el.addEventListener('keydown', key);
+    const release = (e: KeyboardEvent) => held.delete(e.key.toLowerCase());
+    const clearKeys = () => held.clear();
+    window.addEventListener('keyup', release);
+    el.addEventListener('blur', clearKeys);
+    el.addEventListener('contextmenu', (e) => e.preventDefault());
+    const lost = (e: Event) => {
+      e.preventDefault();
+      setError(
+        'The graphics connection was interrupted. Reload to restore the explorer.',
+      );
+    };
+    el.addEventListener('webglcontextlost', lost);
+    return () => {
+      disposed = true;
+      window.removeEventListener('keyup', release);
+      cancelAnimationFrame(raf);
+      observer.disconnect();
+      scene.traverse((obj) => {
+        if ('geometry' in obj) (obj.geometry as T.BufferGeometry).dispose();
+        if ('material' in obj) {
+          const m = obj.material as T.Material | T.Material[];
+          (Array.isArray(m) ? m : [m]).forEach((m) => m.dispose());
+        }
+      });
+      textures.forEach((t) => t.dispose());
+      renderer.dispose();
+      el.remove();
+      overlay.remove();
+    };
+  }, [props.data]);
+  return (
+    <div ref={host} className="space-viewport">
+      {error && (
+        <div className="graphics-error">
+          <h3>3D view unavailable</h3>
+          <p>{error}</p>
+          <button
+            className="secondary-button"
+            onClick={() => window.location.reload()}
+          >
+            Reload explorer
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}

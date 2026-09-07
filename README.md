@@ -1,0 +1,40 @@
+# AstroGuide
+
+Laptop-first astronomy explorer for Five Fish / CSI 3471.
+
+## Running
+
+Use Node 22.13+ and the project’s pnpm lockfile. Install with `pnpm install`, then run `pnpm dev`. Build with `pnpm build`.
+
+## Included in this first version
+
+- NASA-textured animated Earth landing page.
+- True-radius solar-system models and positions calculated with Astronomy Engine.
+- Continuous camera scaling across kilometers, AU, and light-years, with drag, zoom, pan, and WASD flight.
+- 10,426 HYG stars with catalog distances; 5,044 sky-map stars and all 88 constellation regions (89 records because Serpens is split).
+- Object search, sourced information, constellation depth view, and illustrative deep-space models.
+- Light travel with exact vacuum speed, scrubber, pause/restart, and explicit playback acceleration.
+- Local guest discoveries, bookmarks, notes, and a clearly deferred login page.
+- A public source/model notes page with image attribution and downloadable licensed star data.
+
+## Scientific verification
+
+Run `node --experimental-strip-types research/verify.mjs` and `pnpm exec tsc --noEmit`.
+
+The test suite checks an independently requested JPL Horizons Earth vector at J2000 (within the educational model's tolerance), light-time constants, coordinate axes, lunar-distance ranges across 1900–2100, catalog integrity and completeness of constellation IDs, local discovery/bookmark behavior, and planetary asset presence. The reference response is in `research/horizons-earth-j2000.json`. The comparison transforms J2000 equatorial XYZ into the Three.js convention [X,Z,-Y].
+
+No claim is made of spacecraft-grade ephemerides or a relativistic renderer. Planet surfaces are processed texture maps. Star radii are not fabricated: stars remain unresolved display points. Distances are catalog estimates at epoch J2000. The black-hole disk and Andromeda disk are explicitly illustrative. Read `/science` for limitations and licenses.
+
+## Architecture and next stages
+
+The current React UI is built with the required Sites scaffold (Vinext/Vite). Three.js owns the floating-origin explorer; React Three Fiber renders the landing globe. Astronomical world coordinates remain double-precision kilometers; rendering subtracts the camera focus and normalizes by view distance before GPU upload.
+
+The planned Java Spring Boot backend remains a future integration, including the course's domain and DAO layers and Derby persistence if confirmed by the team. No app account authentication or cloud observation database has been implemented; guest data is explicitly browser-local.
+
+Further previously discussed features remain future work: account syncing, location/time-based observing guidance and horizon, event calendar, daily astronomy media and sourced discoveries. Experimental photo recognition, star scanning, image cleanup and classroom calculators are separate extensions. Mobile work is intentionally deferred at the user's request.
+
+The first visual refinement added the landing globe, catalog imagery, Orion preview, clearer typography and keyboard travel. Browser interaction and visual testing have not been performed; validation so far is compilation, HTTP route responses and scientific/data unit checks.
+
+## Data provenance
+
+HYG v4.0, David Nash / Astronexus, CC BY-SA 4.0. The filtered derivative `public/data/stars-3d.json` remains CC BY-SA 4.0. Reproduce it with `research/prepare_catalog.py` after obtaining the upstream v4.0 archive at the URL documented in HYG's repository. D3-Celestial data is by Olaf Frohn, BSD 3-Clause; license files are retained in `public/data`. NASA, ESA/Hubble, EHT and Solar System Scope image credits are shown in `/science` and by observations where appropriate.

@@ -1,0 +1,10 @@
+from pathlib import Path
+p=Path('components/astro/space-viewport.tsx');s=p.read_text(encoding='utf-8-sig')
+s=s.replace('let lastCmd=-1','const held=new Set<string>();\n  let lastCmd=-1')
+s=s.replace('if(follow&&p.mode',"if(p.mode==='space'&&held.size){follow=null;const forward=camera.getWorldDirection(new T.Vector3()),right=new T.Vector3().setFromMatrixColumn(camera.matrixWorld,0);const pace=Math.exp(logR)*dt*.65;const a=Number(held.has('w'))-Number(held.has('s')),b=Number(held.has('d'))-Number(held.has('a')),c=Number(held.has('e'))-Number(held.has('q'));goalTarget.addScaledVector(forward,a*pace).addScaledVector(right,b*pace);goalTarget.y+=c*pace;}\n   if(follow&&p.mode")
+s=s.replace('function down(e:PointerEvent){drag=true;',"function down(e:PointerEvent){renderer.domElement.focus({preventScroll:true});drag=true;")
+s=s.replace('function key(e:KeyboardEvent){',"function key(e:KeyboardEvent){if(['w','a','s','d','q','e'].includes(e.key.toLowerCase())){held.add(e.key.toLowerCase());e.preventDefault();}")
+s=s.replace("el.addEventListener('keydown',key);", "el.addEventListener('keydown',key);const release=(e:KeyboardEvent)=>held.delete(e.key.toLowerCase());const clearKeys=()=>held.clear();window.addEventListener('keyup',release);el.addEventListener('blur',clearKeys);")
+s=s.replace('disposed=true;cancelAnimationFrame(raf);','disposed=true;window.removeEventListener(\'keyup\',release);cancelAnimationFrame(raf);')
+p.write_text(s,encoding='utf8')
+p=Path('components/astro/explorer.tsx');s=p.read_text(encoding='utf-8-sig');s=s.replace('Drag to rotate · Scroll to zoom · Shift + drag to pan','Drag to rotate · Scroll to zoom · WASD to travel');s=s.replace('<div><dt>Visit an object</dt>', '<div><dt>Travel through 3D space</dt><dd>WASD · Q / E for down / up</dd></div><div><dt>Visit an object</dt>');p.write_text(s,encoding='utf8')
