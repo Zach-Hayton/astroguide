@@ -23,7 +23,7 @@ Run `node --experimental-strip-types research/verify.mjs` and `pnpm exec tsc --n
 
 The test suite checks an independently requested JPL Horizons Earth vector at J2000 (within the educational model's tolerance), light-time constants, coordinate axes, lunar-distance ranges across 1900–2100, catalog integrity and completeness of constellation IDs, local discovery/bookmark behavior, and planetary asset presence. The reference response is in `research/horizons-earth-j2000.json`. The comparison transforms J2000 equatorial XYZ into the Three.js convention [X,Z,-Y].
 
-No claim is made of spacecraft-grade ephemerides or a relativistic renderer. Planet surfaces are processed texture maps. Star radii are not fabricated: stars remain unresolved display points. Distances are catalog estimates at epoch J2000. The black-hole disk and Andromeda disk are explicitly illustrative. Read `/science` for limitations and licenses.
+No claim is made of spacecraft-grade ephemerides or a relativistic renderer. Planet surfaces are processed texture maps. In true-scale mode stars remain unresolved display points. Cinematic close-ups use explicitly illustrative plasma surfaces and representative radii, separated from catalog measurements. Distances are catalog estimates at epoch J2000. The black-hole disk and Andromeda disk are explicitly illustrative. Read `/science` for limitations and licenses.
 
 ## Architecture and next stages
 
@@ -31,10 +31,16 @@ The current React UI is built with the required Sites scaffold (Vinext/Vite). Th
 
 The planned Java Spring Boot backend remains a future integration, including the course's domain and DAO layers and Derby persistence if confirmed by the team. No app account authentication or cloud observation database has been implemented; guest data is explicitly browser-local.
 
-Further previously discussed features remain future work: account syncing, location/time-based observing guidance and horizon, event calendar, daily astronomy media and sourced discoveries. Experimental photo recognition, star scanning, image cleanup and classroom calculators are separate extensions. Mobile work is intentionally deferred at the user's request.
+Further previously discussed features remain future work: account syncing, a broader event calendar, daily astronomy media and sourced discoveries. Location/time-based observing guidance, a horizon chart, and upcoming Moon phases are now included. Experimental photo recognition, star scanning, image cleanup and classroom calculators are separate extensions. Mobile work is intentionally deferred at the user's request.
 
 The first visual refinement added the landing globe, catalog imagery, Orion preview, clearer typography and keyboard travel. Browser interaction and visual testing have not been performed; validation so far is compilation, HTTP route responses and scientific/data unit checks.
 
 ## Data provenance
 
 HYG v4.0, David Nash / Astronexus, CC BY-SA 4.0. The filtered derivative `public/data/stars-3d.json` remains CC BY-SA 4.0. Reproduce it with `research/prepare_catalog.py` after obtaining the upstream v4.0 archive at the URL documented in HYG's repository. D3-Celestial data is by Olaf Frohn, BSD 3-Clause; license files are retained in `public/data`. NASA, ESA/Hubble, EHT and Solar System Scope image credits are shown in `/science` and by observations where appropriate.
+
+## Observation planning
+
+`/tonight` adds optional manually selected coordinates and time, an overhead horizon map, target altitude/azimuth, sunrise/sunset, and six upcoming lunar quarter phases using the installed Astronomy Engine. All UI times use the device timezone. Waco is an example preset, not detected location. No weather or location network request is made.
+
+Guest catalog records now optionally include observationStatus (none/planned/observed) and observationDate. Existing records migrate on read without clearing notes or bookmarks. Web exploration and actual observation are distinct. Remaining stages: daily sourced media, optional calculators, account sync and the class backend, photo observations, and experimental image analysis.

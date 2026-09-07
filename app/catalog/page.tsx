@@ -24,6 +24,13 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 export default function Catalog() {
   const [records, setRecords] = useState<Discovery[]>([]),
@@ -32,6 +39,8 @@ export default function Catalog() {
     [query, setQuery] = useState(''),
     [edit, setEdit] = useState<Discovery | null>(null),
     [note, setNote] = useState(''),
+    [status, setStatus] = useState<'none' | 'planned' | 'observed'>('none'),
+    [observationDate, setObservationDate] = useState(''),
     [error, setError] = useState('');
   useEffect(() => {
     const sync = () => setRecords(readCatalog());
@@ -46,10 +55,19 @@ export default function Catalog() {
   }, []);
   const filtered = records.filter(
     (r) =>
-      (filter === 'all' || r.saved) &&
+      (filter === 'all' ||
+        (filter === 'saved' ? r.saved : r.observationStatus === filter)) &&
       r.name.toLowerCase().includes(query.toLowerCase()),
   );
-  function save(id: string, patch: Partial<Pick<Discovery, 'saved' | 'note'>>) {
+  function save(
+    id: string,
+    patch: Partial<
+      Pick<
+        Discovery,
+        'saved' | 'note' | 'observationStatus' | 'observationDate'
+      >
+    >,
+  ) {
     try {
       updateDiscovery(id, patch);
       setRecords(readCatalog());
@@ -70,7 +88,7 @@ export default function Catalog() {
           <div>
             <p className="eyebrow">YOUR OWN CORNER OF THE COSMOS</p>
             <h1>A universe of discoveries.</h1>
-            <p>Every world you visit. Every star that makes you wonder.</p>
+            <p>Discoveries, observing plans, and nights worth remembering.</p>
           </div>
           <Link href="/explore" className="primary-button">
             Keep exploring <ArrowUpRight size={19} />
@@ -102,6 +120,24 @@ export default function Catalog() {
                   {records.filter((r) => r.saved).length}
                 </span>
               </TabsTrigger>
+              <TabsTrigger value="planned">
+                Planned{' '}
+                <span className="count-badge">
+                  {
+                    records.filter((r) => r.observationStatus === 'planned')
+                      .length
+                  }
+                </span>
+              </TabsTrigger>
+              <TabsTrigger value="observed">
+                Observed{' '}
+                <span className="count-badge">
+                  {
+                    records.filter((r) => r.observationStatus === 'observed')
+                      .length
+                  }
+                </span>
+              </TabsTrigger>
             </TabsList>
           </Tabs>
           <label className="catalog-search">
@@ -129,14 +165,22 @@ export default function Catalog() {
                 ? 'No matching discoveries.'
                 : filter === 'saved'
                   ? 'Keep your favorites close.'
-                  : 'Your first discovery is out there.'}
+                  : filter === 'planned'
+                    ? 'Your next night starts here.'
+                    : filter === 'observed'
+                      ? 'Keep a record of the real sky.'
+                      : 'Your first discovery is out there.'}
             </h2>
             <p>
               {query
                 ? 'Try another object name.'
                 : filter === 'saved'
                   ? 'Bookmark an object in the explorer to find it here.'
-                  : 'Visit an object in the explorer and it will appear in your catalog.'}
+                  : filter === 'planned'
+                    ? 'Choose targets on Tonight, or edit a discovery to plan an observation.'
+                    : filter === 'observed'
+                      ? 'Edit a discovery and mark it observed after you see it in the sky.'
+                      : 'Visit an object in the explorer and it will appear in your catalog.'}
             </p>
             <Link href="/explore" className="primary-button">
               Enter the explorer <ArrowUpRight size={18} />
@@ -182,23 +226,38 @@ export default function Catalog() {
                       </button>
                     </div>
                     <p>
-                      First explored{' '}
+                      Added{' '}
                       {new Date(r.viewedAt).toLocaleDateString(undefined, {
                         month: 'short',
                         day: 'numeric',
                         year: 'numeric',
                       })}
                     </p>
+                    {r.observationStatus && r.observationStatus !== 'none' && (
+                      <p className={'observation-badge ' + r.observationStatus}>
+                        {r.observationStatus === 'planned'
+                          ? 'Planned observation'
+                          : 'Observed in the sky'}
+                        {r.observationDate
+                          ? ' · ' +
+                            new Date(
+                              r.observationDate + 'T12:00:00',
+                            ).toLocaleDateString()
+                          : ''}
+                      </p>
+                    )}
                     {r.note && <p className="discovery-note">{r.note}</p>}
                     <div className="discovery-actions">
                       <button
                         onClick={() => {
                           setEdit(r);
                           setNote(r.note);
+                          setStatus(r.observationStatus ?? 'none');
+                          setObservationDate(r.observationDate ?? '');
                         }}
                       >
                         <NotebookPen size={14} />
-                        {r.note ? 'Edit note' : 'Add a note'}
+                        Edit observation
                       </button>
                       <Link
                         href={'/explore?object=' + encodeURIComponent(r.id)}
@@ -215,10 +274,38 @@ export default function Catalog() {
       </section>
       <Dialog open={!!edit} onOpenChange={(open) => !open && setEdit(null)}>
         <DialogContent className="note-dialog">
-          <DialogTitle>Field notes · {edit?.name}</DialogTitle>
+          <DialogTitle>Observation · {edit?.name}</DialogTitle>
           <DialogDescription>
-            Keep a thought, a question, or an observation for your next visit.
+            Plan a future observation or record something you saw in the real
+            sky. Exploring the website does not mark an object observed.
           </DialogDescription>
+          <label className="observation-field">
+            Observation status
+            <Select
+              value={status}
+              onValueChange={(v) => setStatus(v as typeof status)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Explored online only</SelectItem>
+                <SelectItem value="planned">Planned observation</SelectItem>
+                <SelectItem value="observed">Observed in the sky</SelectItem>
+              </SelectContent>
+            </Select>
+          </label>
+          {status !== 'none' && (
+            <label className="observation-field">
+              {status === 'planned' ? 'Planned date' : 'Observed date'}{' '}
+              (optional)
+              <input
+                type="date"
+                value={observationDate}
+                onChange={(e) => setObservationDate(e.target.value)}
+              />
+            </label>
+          )}
           <Textarea
             aria-label="Discovery note"
             placeholder="What caught your attention?"
@@ -230,10 +317,18 @@ export default function Catalog() {
           <button
             className="primary-button"
             onClick={() => {
-              if (edit && save(edit.id, { note: note.trim() })) setEdit(null);
+              if (
+                edit &&
+                save(edit.id, {
+                  note: note.trim(),
+                  observationStatus: status,
+                  observationDate: status === 'none' ? '' : observationDate,
+                })
+              )
+                setEdit(null);
             }}
           >
-            Save note <Check size={17} />
+            Save observation <Check size={17} />
           </button>
         </DialogContent>
       </Dialog>

@@ -21,6 +21,37 @@ export default function Science() {
           is calculated, and where the visual model makes an approximation.
         </p>
         <section>
+          <h2>Planning an observation</h2>
+          <p>
+            Tonight calculates topocentric planetary positions for your selected
+            latitude, longitude, and time. Catalog star and deep-sky directions
+            are precessed from J2000 to the equator of date. Standard
+            atmospheric refraction is applied; terrain, weather, local
+            obstructions, light pollution, and star proper motion are not
+            modeled. The sky chart has north up and east left, as when held
+            overhead. A target above the horizon is not guaranteed to be
+            visible. The displayed collection includes planets, the Moon, stars
+            through magnitude 3.5, and the curated optical deep-sky objects.
+          </p>
+          <p>
+            Sunrise and sunset searches cover the next 24 hours after the chosen
+            instant. At high latitudes there may be no crossing in that
+            interval. Moon phases are geocentric quarter-phase calculations, not
+            predictions of local observing quality. All displayed times use the
+            device time zone, even for a different selected city. Waco is an
+            example location; no location permission or remote geolocation
+            lookup is used.
+          </p>
+          <p>
+            Observation plans, status, dates, and notes remain in this browser.
+            Marking a target as observed is your own record; an online visit
+            does not mark a real observation.
+          </p>
+          <A href="https://github.com/cosinekitty/astronomy/blob/master/source/js/README.md">
+            Astronomy Engine calculation reference
+          </A>
+        </section>
+        <section>
           <h2>Two ways to see space.</h2>
           <p>
             The Sun, planets, Moon, and Pluto use physical radii and distances

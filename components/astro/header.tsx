@@ -16,6 +16,9 @@ export default function Header({ active }: { active?: string }) {
         <Link href="/explore" className={active === 'explore' ? 'active' : ''}>
           Explore
         </Link>
+        <Link href="/tonight" className={active === 'tonight' ? 'active' : ''}>
+          Tonight
+        </Link>
         <Link href="/catalog" className={active === 'catalog' ? 'active' : ''}>
           My catalog
         </Link>

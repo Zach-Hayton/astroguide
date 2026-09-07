@@ -5,6 +5,8 @@ export type Discovery = {
   viewedAt: string;
   saved: boolean;
   note: string;
+  observationStatus?: 'none' | 'planned' | 'observed';
+  observationDate?: string;
 };
 const KEY = 'astroguide.guest-catalog.v1';
 export function readCatalog(): Discovery[] {
@@ -23,6 +25,11 @@ export function readCatalog(): Discovery[] {
         ...v,
         saved: !!v.saved,
         note: typeof v.note === 'string' ? v.note : '',
+        observationStatus: ['planned', 'observed'].includes(v.observationStatus)
+          ? v.observationStatus
+          : 'none',
+        observationDate:
+          typeof v.observationDate === 'string' ? v.observationDate : '',
       }));
   } catch {
     return [];
@@ -50,7 +57,9 @@ export function discover(id: string, name: string, type: string) {
 }
 export function updateDiscovery(
   id: string,
-  patch: Partial<Pick<Discovery, 'saved' | 'note'>>,
+  patch: Partial<
+    Pick<Discovery, 'saved' | 'note' | 'observationStatus' | 'observationDate'>
+  >,
 ) {
   writeCatalog(
     readCatalog().map((o) => (o.id === id ? { ...o, ...patch } : o)),
