@@ -1,3 +1,4 @@
+import { AccountLink } from './account-provider';
 import Link from 'next/link';
 import { Orbit, ArrowUpRight } from 'lucide-react';
 export default function Header({ active }: { active?: string }) {
@@ -23,9 +24,7 @@ export default function Header({ active }: { active?: string }) {
           My catalog
         </Link>
       </nav>
-      <Link href="/login" className="login-link">
-        Log in <ArrowUpRight size={16} />
-      </Link>
+      <AccountLink />
     </header>
   );
 }

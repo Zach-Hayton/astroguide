@@ -1,3 +1,4 @@
+import LoginForm from '@/components/astro/login-form';
 import Link from 'next/link';
 import { ArrowUpRight, Bookmark, Orbit } from 'lucide-react';
 import Header from '@/components/astro/header';
@@ -36,23 +37,7 @@ export default function Login() {
             <br />
             Your catalog.
           </h1>
-          <p>
-            Accounts are coming in a later release. For now, you can explore
-            freely and keep a guest catalog on this laptop.
-          </p>
-          <div className="login-benefit">
-            <Bookmark size={20} />
-            <div>
-              <strong>Start collecting now</strong>
-              <span>
-                Visited objects, bookmarks, and notes are saved in this browser.
-                They won’t sync to other devices yet.
-              </span>
-            </div>
-          </div>
-          <Link href="/catalog" className="primary-button">
-            Open guest catalog <ArrowUpRight size={18} />
-          </Link>
+          <LoginForm />
           <Link href="/explore" className="quiet-link">
             Or head straight into the explorer <ArrowUpRight size={15} />
           </Link>

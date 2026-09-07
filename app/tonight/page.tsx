@@ -107,10 +107,10 @@ export default function Tonight() {
         })
       : 'No crossing in the next 24 hours';
   const zone = when ? Intl.DateTimeFormat().resolvedOptions().timeZone : '';
-  function plan(t: SkyTarget) {
+  async function plan(t: SkyTarget) {
     try {
-      discover(t.object.id, t.object.name, t.object.type);
-      updateDiscovery(t.object.id, {
+      await discover(t.object.id, t.object.name, t.object.type);
+      await updateDiscovery(t.object.id, {
         saved: true,
         observationStatus: 'planned',
         observationDate: when.slice(0, 10),
@@ -118,7 +118,7 @@ export default function Tonight() {
       setNotice(t.object.name + ' added to your observation plans.');
     } catch {
       setNotice(
-        'Your browser could not save this plan. Check browser storage settings.',
+        'Could not save this plan. Check your connection or sign in again.',
       );
     }
   }

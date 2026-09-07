@@ -14,7 +14,7 @@ Use Node 22.13+ and the project’s pnpm lockfile. Install with `pnpm install`, 
 - 10,426 HYG stars with catalog distances; 5,044 sky-map stars and all 88 constellation regions (89 records because Serpens is split).
 - Object search, sourced information, constellation depth view, and illustrative deep-space models.
 - Light travel with exact vacuum speed, scrubber, pause/restart, and explicit playback acceleration.
-- Local guest discoveries, bookmarks, notes, and a clearly deferred login page.
+- Local guest discoveries plus two demo accounts with database-backed catalogs, bookmarks, observation plans, and notes.
 - A public source/model notes page with image attribution and downloadable licensed star data.
 
 ## Scientific verification
@@ -29,7 +29,7 @@ No claim is made of spacecraft-grade ephemerides or a relativistic renderer. Pla
 
 The current React UI is built with the required Sites scaffold (Vinext/Vite). Three.js owns the floating-origin explorer; React Three Fiber renders the landing globe. Astronomical world coordinates remain double-precision kilometers; rendering subtracts the camera focus and normalizes by view distance before GPU upload.
 
-The planned Java Spring Boot backend remains a future integration, including the course's domain and DAO layers and Derby persistence if confirmed by the team. No app account authentication or cloud observation database has been implemented; guest data is explicitly browser-local.
+The planned Java Spring Boot backend remains a future integration, including the course's domain and DAO layers and Derby persistence if confirmed by the team. Demo accounts currently use Worker routes and D1; guest data remains browser-local.
 
 Further previously discussed features remain future work: account syncing, a broader event calendar, daily astronomy media and sourced discoveries. Location/time-based observing guidance, a horizon chart, and upcoming Moon phases are now included. Experimental photo recognition, star scanning, image cleanup and classroom calculators are separate extensions. Mobile work is intentionally deferred at the user's request.
 
@@ -44,3 +44,13 @@ HYG v4.0, David Nash / Astronexus, CC BY-SA 4.0. The filtered derivative `public
 `/tonight` adds optional manually selected coordinates and time, an overhead horizon map, target altitude/azimuth, sunrise/sunset, and six upcoming lunar quarter phases using the installed Astronomy Engine. All UI times use the device timezone. Waco is an example preset, not detected location. No weather or location network request is made.
 
 Guest catalog records now optionally include observationStatus (none/planned/observed) and observationDate. Existing records migrate on read without clearing notes or bookmarks. Web exploration and actual observation are distinct. Remaining stages: daily sourced media, optional calculators, account sync and the class backend, photo observations, and experimental image analysis.
+
+## Demo accounts
+
+Two app-level demo usernames, user1 and user2, use server-side salted PBKDF2-SHA256 password verifiers supplied through the secret DEMO_PASSWORD_HASHES. No password is included in source. The current private Sites access policy remains an outer access gate; creating these accounts does not grant new visitors access to the hosting platform.
+
+Sessions use random 256-bit tokens, hashed in D1, with HttpOnly, SameSite=Lax cookies (Secure on HTTPS), seven-day expiration and logout revocation. Writes check same-origin requests and owner identity. Account catalogs are D1-authoritative and guest catalogs remain separate. These are shared demo identities: anyone given one account's password can access that account's records.
+
+Schema is in db/schema.ts and generated migrations in drizzle/. Local development needs .dev.vars with DEMO_PASSWORD_HASHES and the D1 migration applied locally. Hosting on another Cloudflare account needs a real DB binding, this migration, and that secret configured there; the current Sites platform owns its own database. The future course Spring Boot backend is still separate work.
+
+Run research/verify-accounts.mjs against a local running app with ASTRO_DEMO_PASSWORD set. It verifies authentication, ownership isolation, CSRF rejection, logout and durable record retrieval using disposable local test data.

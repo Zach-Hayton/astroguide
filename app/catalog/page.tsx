@@ -10,6 +10,7 @@ import {
   Search,
   NotebookPen,
 } from 'lucide-react';
+import { CatalogAccountBanner } from '@/components/astro/account-provider';
 import Header from '@/components/astro/header';
 import {
   readCatalog,
@@ -59,7 +60,7 @@ export default function Catalog() {
         (filter === 'saved' ? r.saved : r.observationStatus === filter)) &&
       r.name.toLowerCase().includes(query.toLowerCase()),
   );
-  function save(
+  async function save(
     id: string,
     patch: Partial<
       Pick<
@@ -69,13 +70,13 @@ export default function Catalog() {
     >,
   ) {
     try {
-      updateDiscovery(id, patch);
+      await updateDiscovery(id, patch);
       setRecords(readCatalog());
       setError('');
       return true;
     } catch {
       setError(
-        'Your browser could not save this change. Check your storage settings.',
+        'Could not save this change. Check your connection or sign in again.',
       );
       return false;
     }
@@ -96,16 +97,7 @@ export default function Catalog() {
         </div>
         <div className="guest-banner">
           <Orbit size={20} />
-          <div>
-            <strong>Your guest catalog</strong>
-            <span>
-              Saved in this browser on this laptop. Account syncing will come
-              later.
-            </span>
-          </div>
-          <Link href="/login">
-            About accounts <ArrowUpRight size={14} />
-          </Link>
+          <CatalogAccountBanner />
         </div>
         <div className="catalog-toolbar">
           <Tabs value={filter} onValueChange={(v) => setFilter(String(v))}>
@@ -316,14 +308,14 @@ export default function Catalog() {
           />
           <button
             className="primary-button"
-            onClick={() => {
+            onClick={async () => {
               if (
                 edit &&
-                save(edit.id, {
+                (await save(edit.id, {
                   note: note.trim(),
                   observationStatus: status,
                   observationDate: status === 'none' ? '' : observationDate,
-                })
+                }))
               )
                 setEdit(null);
             }}

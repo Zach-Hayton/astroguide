@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
+import { AccountLink } from './account-provider';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowUpRight,
@@ -141,7 +142,7 @@ export default function Explorer() {
   useEffect(() => {
     let cancelled = false;
     loadDataset()
-      .then((d) => {
+      .then(async (d) => {
         if (cancelled) return;
         setData(d);
         const now = new Date();
@@ -160,11 +161,11 @@ export default function Explorer() {
         send({ type: 'object', object: obj });
         if (url.searchParams.has('light')) setLightOpen(true);
         try {
-          discover(obj.id, obj.name, obj.type);
+          await discover(obj.id, obj.name, obj.type);
           setSaved(!!readCatalog().find((x) => x.id === obj.id)?.saved);
         } catch {
           setStorageError(
-            'Your browser is blocking local saving. Discoveries will not persist.',
+            'Could not save this discovery. Check your connection or sign in again.',
           );
         }
       })
@@ -177,16 +178,18 @@ export default function Explorer() {
       cancelled = true;
     };
   }, []);
-  function choose(o: SpaceObject) {
+  async function choose(o: SpaceObject) {
     setSelected(o);
     if (o.type === 'Constellation') setMode('sky');
     else if (mode === 'sky' && o.body) setMode('space');
     send({ type: 'object', object: o });
     try {
-      discover(o.id, o.name, o.type);
+      await discover(o.id, o.name, o.type);
       setSaved(!!readCatalog().find((x) => x.id === o.id)?.saved);
     } catch {
-      setStorageError('Your browser is blocking local saving.');
+      setStorageError(
+        'Could not save. Check your connection or sign in again.',
+      );
     }
   }
   const options = useMemo(() => {
@@ -260,12 +263,14 @@ export default function Explorer() {
     setMode('space');
     send({ type: 'light', ...lightPath });
   }
-  function toggleSave() {
+  async function toggleSave() {
     try {
-      updateDiscovery(selected.id, { saved: !saved });
+      await updateDiscovery(selected.id, { saved: !saved });
       setSaved(!saved);
     } catch {
-      setStorageError('Your browser is blocking local saving.');
+      setStorageError(
+        'Could not save. Check your connection or sign in again.',
+      );
     }
   }
   return (
@@ -291,9 +296,7 @@ export default function Explorer() {
           >
             <Info size={18} />
           </button>
-          <Link href="/login" className="login-link">
-            Log in <ArrowUpRight size={14} />
-          </Link>
+          <AccountLink />
         </div>
       </header>
       <div className={'explorer-workspace ' + (compact ? 'compact' : '')}>

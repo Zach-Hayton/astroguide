@@ -43,7 +43,8 @@ export default function Science() {
             lookup is used.
           </p>
           <p>
-            Observation plans, status, dates, and notes remain in this browser.
+            Signed-in observation plans, status, dates, and notes are stored in
+            an account-specific database. Guest records remain in this browser.
             Marking a target as observed is your own record; an online visit
             does not mark a real observation.
           </p>
@@ -275,7 +276,7 @@ export default function Science() {
         <section>
           <h2>Your discovery catalog</h2>
           <p>
-            Accounts and cross-device syncing are deferred. The guest catalog
+            Demo accounts sync their separate catalogs through the database. The guest catalog
             stores visited objects, bookmarks, and notes in this browser’s local
             storage. Clearing browser data removes that catalog. It is not an
             authenticated private account.
