@@ -534,7 +534,7 @@ export default function SpaceViewport(props: Props) {
         const m = obj.material;
         if (m instanceof T.ShaderMaterial) {
           m.vertexShader =
-            '#include <logdepthbuf_pars_vertex>\n' +
+            '#include <common>\n#include <logdepthbuf_pars_vertex>\n' +
             m.vertexShader.replace(
               /}\s*$/,
               '\n#include <logdepthbuf_vertex>\n}',
