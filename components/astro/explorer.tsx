@@ -115,6 +115,7 @@ export default function Explorer() {
     [category, setCategory] = useState('solar'),
     [query, setQuery] = useState(''),
     [date, setDate] = useState(new Date('2026-09-06T12:00:00Z')),
+    [cinematic, setCinematic] = useState(true),
     [lines, setLines] = useState(true),
     [labels, setLabels] = useState(true),
     [command, setCommand] = useState<ViewCommand>({
@@ -447,6 +448,7 @@ export default function Explorer() {
               selected={selected}
               date={date}
               mode={mode}
+              cinematic={cinematic}
               lines={lines}
               labels={labels}
               command={command}
@@ -517,8 +519,12 @@ export default function Explorer() {
                 <strong>{cameraDistance}</strong>
                 <span>
                   {mode === 'sky'
-                    ? 'Angular star map · No local horizon'
-                    : 'True object sizes & distances · Label markers enlarged'}
+                    ? cinematic
+                      ? 'Enhanced starlight · Illustrative sky glow'
+                      : 'Angular star map · No local horizon'
+                    : cinematic
+                      ? 'Cinematic view · Planet sizes enhanced'
+                      : 'True object sizes & distances'}
                 </span>
               </div>
               <button
@@ -734,6 +740,19 @@ export default function Explorer() {
             <div className="view-options">
               <span className="eyebrow">YOUR VIEW</span>
               <label>
+                Cinematic view
+                <Switch
+                  checked={cinematic}
+                  onCheckedChange={setCinematic}
+                  aria-label="Cinematic view"
+                />
+              </label>
+              <small>
+                {cinematic
+                  ? 'Brighter starlight, enhanced planets, and an artistic Milky Way backdrop.'
+                  : 'Physical planet sizes, catalog stars, and natural shadow contrast.'}
+              </small>
+              <label>
                 Object labels{' '}
                 <Switch
                   checked={labels}
@@ -824,13 +843,14 @@ export default function Explorer() {
             </div>
           </dl>
           <p>
-            Planet sizes and distances share one physical scale. Stars are light
-            points with an enlarged display glow. Deep-space imagery and
+            Turn off Cinematic view for physical planet sizes. Cinematic view
+            enhances distant planets, lighting, and background stars. Stars are
+            light points with an enlarged display glow. Deep-space imagery and
             illustrative models are labeled.
           </p>
           <p>
-            Earth sky shows catalog directions, without a local horizon,
-            atmosphere, or observing-location prediction.
+            Earth sky shows catalog directions, without a local horizon, or
+            observing-location prediction. Cinematic sky glow is artistic.
           </p>
           <Link className="source-link" href="/science">
             Read all model notes <ArrowUpRight size={14} />

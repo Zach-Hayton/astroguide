@@ -21,14 +21,19 @@ export default function Science() {
           is calculated, and where the visual model makes an approximation.
         </p>
         <section>
-          <h2>One scale. A faster camera.</h2>
+          <h2>Two ways to see space.</h2>
           <p>
             The Sun, planets, Moon, and Pluto use physical radii and distances
-            in kilometers. Objects are not enlarged to fill their orbits.
-            Zooming changes the camera distance exponentially so you can cross
-            large scales quickly. Name labels and stellar light points are
-            enlarged screen markers; their size does not describe an object’s
-            radius.
+            in kilometers. True-scale mode preserves those sizes. The default
+            Cinematic view enlarges distant planets for visibility, adds softer
+            fill lighting, and rotates surfaces for presentation. It adds 28,000
+            artistic background stars and a stylized Milky Way haze; these are
+            not catalog objects. Earth-sky glow is illustrative, not a local
+            horizon. Light-travel playback always uses physical centers and
+            physical planet sizes. Zooming changes the camera distance
+            exponentially so you can cross large scales quickly. Name labels and
+            stellar light points are enlarged screen markers; their size does
+            not describe an object’s radius.
           </p>
           <p>
             Planetary models are spheres using mean radii. Oblateness, terrain
