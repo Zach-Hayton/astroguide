@@ -2,7 +2,7 @@
 
 Laptop-first astronomy explorer for Five Fish / CSI 3471.
 
-Team members: start with [TEAM_SETUP.md](TEAM_SETUP.md) for local setup, checks, collaboration, and the remaining Cloudflare hosting steps.
+Team members: Zach Hayton
 
 ## Running
 
