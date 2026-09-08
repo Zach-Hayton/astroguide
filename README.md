@@ -2,6 +2,8 @@
 
 Laptop-first astronomy explorer for Five Fish / CSI 3471.
 
+Team members: start with [TEAM_SETUP.md](TEAM_SETUP.md) for local setup, checks, collaboration, and the remaining Cloudflare hosting steps.
+
 ## Running
 
 Use Node 22.13+ and the project’s pnpm lockfile. Install with `pnpm install`, then run `pnpm dev`. Build with `pnpm build`.
