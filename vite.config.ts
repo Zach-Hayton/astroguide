@@ -7,6 +7,9 @@ import hostingConfig from './.openai/hosting.json';
 const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
   '379a97fd-daba-4e5c-8ddb-b14261fb515c';
 
+const ASTROGUIDE_DATABASE_ID =
+  '379a97fd-daba-4e5c-8ddb-b14261fb515c';
+
 const { d1, r2 } = hostingConfig;
 
 // macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
