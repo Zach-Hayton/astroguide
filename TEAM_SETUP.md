@@ -73,4 +73,4 @@ pnpm exec wrangler d1 migrations apply DB --remote --config wrangler.cloudflare.
 
 Set `DEMO_PASSWORD_HASHES` as a Worker secret through Cloudflare. Keep its value out of source control and ordinary configuration. The deployed database starts separately from local development databases. Shared account credentials give access to that account's catalog.
 
-The default `pnpm build` retains compatibility with the original Sites preview. Use the explicit Cloudflare build command for the team's Cloudflare deployment.
+Both `pnpm build` and `pnpm build:cloudflare` produce the team's Cloudflare deployment. `pnpm build:sites` retains the original preview build when needed.

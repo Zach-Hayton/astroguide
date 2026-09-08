@@ -2,6 +2,8 @@
 
 An astronomy explorer and observing planner for Five Fish / CSI 3471.
 
+Team members: Zach Hayton
+
 ## Features
 
 - Interactive solar-system and deep-space views, with cinematic and true-scale modes.
