@@ -1,8 +1,0 @@
-from pathlib import Path
-p=Path('components/astro/explorer.tsx');s=p.read_text(encoding='utf-8-sig');s=s.replace('onChange={setFromId}',"onChange={id=>{if(id===toId)setToId(fromId);setFromId(id);}}");s=s.replace('9460730472580.8','LY_KM').replace('formatDuration,C_KM_S,YEAR_SECONDS','formatDuration,C_KM_S,YEAR_SECONDS,LY_KM');p.write_text(s,encoding='utf8')
-p=Path('app/science/page.tsx');s=p.read_text(encoding='utf-8-sig');s=s.replace('<li><A href="https://www.solarsystemscope.com/textures/">','<li><A href="https://science.nasa.gov/photojournal/cassinis-best-maps-of-jupiter-cylindrical-map/">Jupiter map</A> — NASA/JPL/Space Science Institute, Cassini global color mosaic. Processed historical cloud map.</li><li><A href="https://www.solarsystemscope.com/textures/">');p.write_text(s,encoding='utf8')
-p=Path('components/astro/space-viewport.tsx');s=p.read_text(encoding='utf-8-sig')
-s=s.replace("let lastCmd=-1", "const sunGlow=new T.Mesh(new T.SphereGeometry(1.13,48,32),(atmosphere.material as T.ShaderMaterial).clone());(sunGlow.material as T.ShaderMaterial).fragmentShader=(sunGlow.material as T.ShaderMaterial).fragmentShader.replace('vec4(.15,.47,.95,f*.35)','vec4(1.,.58,.15,f*.65)');scene.add(sunGlow);\n  let lastCmd=-1")
-s=s.replace("atmosphere.visible=solar;", "sunGlow.visible=solar;sunGlow.position.copy(planetMeshes[0].mesh.position);sunGlow.scale.copy(planetMeshes[0].mesh.scale);atmosphere.visible=solar;")
-s=s.replace("const radius=Math.exp(logR);", "goalLogR=T.MathUtils.clamp(goalLogR,Math.log(follow?.radiusKm?follow.radiusKm*1.1:200),Math.log(1e8*LY_KM));const radius=Math.exp(logR);")
-p.write_text(s,encoding='utf8')

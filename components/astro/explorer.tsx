@@ -1,5 +1,5 @@
 'use client';
-import Link from 'next/link';
+import Link from '@/components/astro/site-link';
 import dynamic from 'next/dynamic';
 import { AccountLink } from './account-provider';
 import { useEffect, useMemo, useRef, useState } from 'react';

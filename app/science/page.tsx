@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import Link from '@/components/astro/site-link';
 import { ArrowUpRight } from 'lucide-react';
 import Header from '@/components/astro/header';
 const A = ({ href, children }: { href: string; children: React.ReactNode }) => (
@@ -38,9 +38,10 @@ export default function Science() {
             instant. At high latitudes there may be no crossing in that
             interval. Moon phases are geocentric quarter-phase calculations, not
             predictions of local observing quality. All displayed times use the
-            device time zone, even for a different selected city. Waco is an
-            example location; no location permission or remote geolocation
-            lookup is used.
+            device time zone, even for a different selected city. City searches
+            use Open-Meteo and GeoNames. Device location is requested only when
+            you choose “Use my location”; those coordinates stay in the page
+            and are not sent to the city-search service.
           </p>
           <p>
             Signed-in observation plans, status, dates, and notes are stored in

@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import Link from '@/components/astro/site-link';
 import { accountName, initializeAccount } from '@/lib/astro/catalog';
 export function AccountProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false),

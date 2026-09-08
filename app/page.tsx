@@ -1,6 +1,7 @@
+import Header from '@/components/astro/header';
 import HeroEarth from '@/components/astro/hero-earth';
 import OrionDiagram from '@/components/astro/orion-diagram';
-import Link from 'next/link';
+import Link from '@/components/astro/site-link';
 import {
   ArrowUpRight,
   ArrowRight,
@@ -11,24 +12,7 @@ import {
 export default function Home() {
   return (
     <main className="landing">
-      <header className="site-header">
-        <Link href="/" className="brand">
-          <Orbit size={27} />
-          <span>
-            astroguide<span className="brand-dot">.</span>
-          </span>
-        </Link>
-        <nav>
-          <Link href="/" className="active">
-            Home
-          </Link>
-          <Link href="/explore">Explore</Link>
-          <Link href="/catalog">My catalog</Link>
-        </nav>
-        <Link href="/login" className="login-link">
-          Log in <ArrowUpRight size={16} />
-        </Link>
-      </header>
+      <Header active="home" />
       <section className="hero">
         <HeroEarth />
         <div className="hero-shade" />

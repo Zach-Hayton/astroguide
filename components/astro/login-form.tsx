@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import Link from 'next/link';
+import Link from '@/components/astro/site-link';
 import { accountName } from '@/lib/astro/catalog';
 import { announceAccountChange } from './account-provider';
 export default function LoginForm() {
@@ -54,8 +54,7 @@ export default function LoginForm() {
           }}
         >
           <p>
-            Sign in with your demo account. Each account has its own
-            discoveries, plans, and notes.
+            Sign in to keep your discoveries, observation plans, and notes together.
           </p>
           <label>
             Username
@@ -65,7 +64,7 @@ export default function LoginForm() {
               maxLength={50}
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="user1 or user2"
+              placeholder="Your username"
             />
           </label>
           <label>

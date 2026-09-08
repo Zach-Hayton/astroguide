@@ -1,5 +1,5 @@
 import { AccountLink } from './account-provider';
-import Link from 'next/link';
+import Link from '@/components/astro/site-link';
 import { Orbit, ArrowUpRight } from 'lucide-react';
 export default function Header({ active }: { active?: string }) {
   return (

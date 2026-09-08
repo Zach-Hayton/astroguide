@@ -59,19 +59,18 @@ node research/verify-observing.mjs
 - Use GitHub Issues to assign features and bugs. Avoid committing runtime secrets, account records, or database files.
 - Coordinate database changes: applied migrations are immutable; generate a new migration for later changes.
 
-## Next: hosting in the team's Cloudflare account
+## Cloudflare hosting
 
-The current `.openai/hosting.json` and Sites plugin refer to the existing private preview service. Pushing this repository to GitHub does **not** deploy a new Cloudflare site, move a database, or grant teammates access to that private preview.
+The app uses the account's Workers Free plan with an included D1 database. Do not upgrade the plan or enable paid add-ons. Free quotas can limit availability; they do not require a paid upgrade to keep the project configured.
 
-Before enabling automatic production deployment, we need to:
+The Cloudflare configuration is `wrangler.cloudflare.jsonc`. Build with `pnpm build:cloudflare`; deploy the generated output with `pnpm exec wrangler deploy --config dist/server/wrangler.json`.
 
-1. Configure a team-owned Worker and adapt the build configuration for direct Cloudflare deployment while preserving the current preview setup.
-2. Create a real D1 database in that Cloudflare account and bind it as `DB`.
-3. Apply the committed schema migrations to that database.
-4. Set `DEMO_PASSWORD_HASHES` as a Worker secret through Cloudflare; never place the real value in GitHub source or ordinary configuration.
-5. Connect the private GitHub repository to Workers Builds and choose build/deployment commands after validating that direct configuration.
-6. Verify HTTPS sign-in, persistence, logout, and separation of user1/user2 catalogs on the hosted deployment. Test free-tier CPU limits before relying on a zero-cost plan.
+For GitHub-connected Workers Builds, set the build command to `pnpm build:cloudflare` and the deploy command to `pnpm exec wrangler deploy --config dist/server/wrangler.json`. Run database migrations separately when the schema changes:
 
-The new database starts empty unless we explicitly migrate records. Shared demo credentials identify a demo account, not an individual teammate. Anyone given an account's credentials can access its catalog.
+```sh
+pnpm exec wrangler d1 migrations apply DB --remote --config wrangler.cloudflare.jsonc
+```
 
-References: [Workers GitHub integration](https://developers.cloudflare.com/workers/ci-cd/builds/git-integration/github-integration/), [D1 setup](https://developers.cloudflare.com/d1/get-started/), [Workers build configuration](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/).
+Set `DEMO_PASSWORD_HASHES` as a Worker secret through Cloudflare. Keep its value out of source control and ordinary configuration. The deployed database starts separately from local development databases. Shared account credentials give access to that account's catalog.
+
+The default `pnpm build` retains compatibility with the original Sites preview. Use the explicit Cloudflare build command for the team's Cloudflare deployment.

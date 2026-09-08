@@ -1,0 +1,17 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "astroguide",
+  "account_id": "ac6e17067b0e30cb2e41f6400a69774a",
+  "main": "vinext/server/fetch-handler",
+  "compatibility_date": "2026-09-07",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": false,
+  "observability": { "enabled": false },
+  "d1_databases": [{
+    "binding": "DB",
+    "database_name": "astroguide-catalog",
+    "database_id": "379a97fd-daba-4e5c-8ddb-b14261fb515c",
+    "migrations_dir": "drizzle"
+  }]
+}

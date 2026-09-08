@@ -2126,3 +2126,15 @@ select:focus-visible {
 .observation-badge{font-size:13px!important;color:#a7d8ed!important}.observation-badge.observed{color:#a7dfbc!important}.observation-field{margin:12px 0}.observation-field [data-slot="select-trigger"]{width:100%}.catalog-toolbar{flex-wrap:wrap;gap:18px}
 @media(max-width:1150px){.tonight-content{padding:30px 25px}.observing-controls{gap:10px}.sky-summary strong{font-size:18px}.sky-focus-actions{flex-wrap:wrap}.target-panel [data-slot="tabs-list"]{margin-left:12px}.target-panel [data-slot="tabs-trigger"]{font-size:13px}}
 .account-loading{min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:20px;background:#070e18}.account-loading h2{font-size:20px;font-weight:400;color:#b5cadd}.account-form{width:100%;max-width:410px;margin:20px 0}.account-form form,.account-form>div{display:flex;flex-direction:column;gap:18px}.account-form label{display:flex;flex-direction:column;gap:8px;font-size:14px;color:#bdcfdf}.account-form input{width:100%;border:1px solid #365066;border-radius:8px;padding:12px;background:#07111d;color:#eaf2fa;font-size:16px}.account-form p{font-size:16px;line-height:1.6}.account-form small{display:block;font-size:13px;line-height:1.6;color:#91a9be}.account-form>.secondary-button{margin-top:16px}.account-form button:disabled{opacity:.6;cursor:wait}
+
+.location-search {margin:24px 0 16px;padding:22px;border:1px solid #203244;border-radius:14px;background:linear-gradient(120deg,#10212d,#0b1521)}
+.location-search label {display:block;margin-bottom:10px;color:#d9e7ef;font-size:14px;font-weight:600}
+.location-search-row {display:flex;gap:10px;align-items:center}
+.location-search-row input {flex:1;min-width:180px;height:44px;border:1px solid #38505d;border-radius:8px;background:#070e18;color:#e7edf4;padding:10px 14px}
+.location-search-row button {min-height:44px;white-space:nowrap}
+.location-search p,.location-search small {display:block;color:#a5bac9;font-size:13px;margin:12px 0 0;line-height:1.6}
+.location-search a {color:#a7dfce;text-decoration:underline}
+.location-results {list-style:none;padding:0;margin:14px 0 0;display:grid;gap:6px}
+.location-results button {width:100%;text-align:left;padding:12px 14px;border:1px solid #294052;background:#0a1520;color:#d9e7ef;border-radius:8px;cursor:pointer}
+.location-results button:hover,.location-results button:focus-visible {background:#183242;border-color:#9acabb}
+.location-search button:disabled {opacity:.55;cursor:wait}

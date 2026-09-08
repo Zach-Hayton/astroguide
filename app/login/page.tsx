@@ -1,5 +1,5 @@
 import LoginForm from '@/components/astro/login-form';
-import Link from 'next/link';
+import Link from '@/components/astro/site-link';
 import { ArrowUpRight, Bookmark, Orbit } from 'lucide-react';
 import Header from '@/components/astro/header';
 export default function Login() {

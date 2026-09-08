@@ -1,5 +1,5 @@
 'use client';
-import Link from 'next/link';
+import Link from '@/components/astro/site-link';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowUpRight,
@@ -11,6 +11,7 @@ import {
   Bookmark,
 } from 'lucide-react';
 import Header from '@/components/astro/header';
+import LocationSearch from '@/components/astro/location-search';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
@@ -44,7 +45,7 @@ export default function Tonight() {
     [notice, setNotice] = useState(''),
     [lat, setLat] = useState('31.55'),
     [lon, setLon] = useState('-97.15'),
-    [place, setPlace] = useState('0'),
+    [place, setPlace] = useState('Waco, Texas'),
     [when, setWhen] = useState(''),
     [filter, setFilter] = useState('all'),
     [selected, setSelected] = useState(''),
@@ -136,6 +137,9 @@ export default function Tonight() {
             <Bookmark size={17} /> My observation plans
           </Link>
         </div>
+        <LocationSearch onSelect={(name, latitude, longitude) => {
+          setPlace(name); setLat(String(latitude)); setLon(String(longitude));
+        }} />
         <div className="observing-controls">
           <label>
             <span>
@@ -145,7 +149,7 @@ export default function Tonight() {
               value={place}
               onValueChange={(v) => {
                 setPlace(String(v));
-                const p = places[Number(v)];
+                const p = places.find(p => p.name === v);
                 if (p) {
                   setLat(String(p.lat));
                   setLon(String(p.lon));
@@ -153,14 +157,15 @@ export default function Tonight() {
               }}
             >
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue>{place === 'custom' ? 'Custom coordinates' : place}</SelectValue>
               </SelectTrigger>
               <SelectContent>
-                {places.map((p, i) => (
-                  <SelectItem key={p.name} value={String(i)}>
+                {places.map((p) => (
+                  <SelectItem key={p.name} value={p.name}>
                     {p.name}
                   </SelectItem>
                 ))}
+                {place !== 'custom' && !places.some(p => p.name === place) && <SelectItem value={place}>{place}</SelectItem>}
                 <SelectItem value="custom">Custom coordinates</SelectItem>
               </SelectContent>
             </Select>
@@ -211,10 +216,8 @@ export default function Tonight() {
           </button>
         </div>
         <p className="observing-context">
-          Waco is an example starting place, not your detected location.
-          Coordinates stay in this page. All times use your device’s time zone
-          {zone ? ' (' + zone + ')' : ''}, including when selecting another
-          city.
+          Observing from <strong>{place === 'custom' ? 'Custom coordinates' : place}</strong>.
+          {' '}All times use your device’s time zone{zone ? ' (' + zone + ')' : ''}.
         </p>
         {error ? (
           <p role="alert" className="form-error">
