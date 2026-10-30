@@ -1768,6 +1768,11 @@ select:focus-visible {
 }
 .hero-earth canvas {
   display: block;
+  cursor: grab;
+  touch-action: none;
+}
+.hero-earth canvas:active {
+  cursor: grabbing;
 }
 .hero-shade {
   pointer-events: none;
