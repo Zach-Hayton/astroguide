@@ -1,10 +1,16 @@
 'use client';
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { Canvas, useFrame, useLoader } from '@react-three/fiber';
+import { Canvas, useFrame, useLoader, type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import { equatorial, starColor, type SkyFeature } from '@/lib/astro/data';
 function Earth() {
   const globe = useRef<THREE.Group>(null);
+  const drag = useRef<{ id: number; x: number; y: number } | null>(null);
+  const stopDrag = (event: ThreeEvent<PointerEvent>) => {
+    if (drag.current?.id !== event.pointerId) return;
+    drag.current = null;
+    (event.target as Element).releasePointerCapture(event.pointerId);
+  };
   const map = useLoader(THREE.TextureLoader, '/assets/earth-map.jpg');
   map.colorSpace = THREE.SRGBColorSpace;
   map.anisotropy = 8;
@@ -15,13 +21,39 @@ function Earth() {
     ).matches;
   }, []);
   useFrame((_, dt) => {
-    if (globe.current && !reduce.current)
+    if (globe.current && !reduce.current && !drag.current)
       globe.current.rotation.y += Math.min(dt, 0.05) * 0.018;
   });
   return (
     <group position={[1.85, -0.18, 0]} rotation={[0.05, 0, -0.16]}>
       <group ref={globe} rotation={[0, -1.9, 0]}>
-        <mesh>
+        <mesh
+          onPointerDown={(event) => {
+            if (event.button !== 0 || drag.current) return;
+            event.stopPropagation();
+            drag.current = {
+              id: event.pointerId,
+              x: event.clientX,
+              y: event.clientY,
+            };
+            (event.target as Element).setPointerCapture(event.pointerId);
+          }}
+          onPointerMove={(event) => {
+            const previous = drag.current;
+            if (!previous || previous.id !== event.pointerId || !globe.current)
+              return;
+            event.stopPropagation();
+            globe.current.rotation.y += (event.clientX - previous.x) * 0.006;
+            globe.current.rotation.x += (event.clientY - previous.y) * 0.006;
+            previous.x = event.clientX;
+            previous.y = event.clientY;
+          }}
+          onPointerUp={stopDrag}
+          onPointerCancel={stopDrag}
+          onLostPointerCapture={() => {
+            drag.current = null;
+          }}
+        >
           <sphereGeometry args={[2.42, 96, 64]} />
           <meshStandardMaterial map={map} roughness={0.92} metalness={0.03} />
         </mesh>
@@ -94,7 +126,7 @@ export default function HeroEarth() {
   return (
     <div
       className="hero-earth"
-      aria-label="Slowly rotating 3D Earth using NASA Blue Marble imagery"
+      aria-label="Slowly rotating 3D Earth using NASA Blue Marble imagery. Drag to rotate."
     >
       {ready && (
         <Canvas
