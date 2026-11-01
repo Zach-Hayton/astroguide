@@ -1,13 +1,32 @@
 'use client';
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { Canvas, useFrame, useLoader, type ThreeEvent } from '@react-three/fiber';
+import {
+  Canvas,
+  useFrame,
+  useLoader,
+  type ThreeEvent,
+} from '@react-three/fiber';
 import * as THREE from 'three';
 import { equatorial, starColor, type SkyFeature } from '@/lib/astro/data';
 function Earth() {
   const globe = useRef<THREE.Group>(null);
-  const drag = useRef<{ id: number; x: number; y: number } | null>(null);
+  const drag = useRef<{
+    id: number;
+    x: number;
+    y: number;
+    time: number;
+  } | null>(null);
+  // Angular velocity in radians/second; damping is independent of frame rate.
+  const velocity = useRef(new THREE.Vector2());
+  const damping = 1.8;
   const stopDrag = (event: ThreeEvent<PointerEvent>) => {
     if (drag.current?.id !== event.pointerId) return;
+    // A pause before release dissipates the last flick instead of replaying it.
+    velocity.current.multiplyScalar(
+      Math.exp(-Math.max(0, event.timeStamp - drag.current.time) / 80),
+    );
+    if (event.type === 'pointercancel' || reduce.current)
+      velocity.current.set(0, 0);
     drag.current = null;
     (event.target as Element).releasePointerCapture(event.pointerId);
   };
@@ -21,8 +40,14 @@ function Earth() {
     ).matches;
   }, []);
   useFrame((_, dt) => {
-    if (globe.current && !reduce.current && !drag.current)
-      globe.current.rotation.y += Math.min(dt, 0.05) * 0.018;
+    if (!globe.current || drag.current || reduce.current) return;
+    const elapsed = Math.min(dt, 0.05);
+    const decay = Math.exp(-damping * elapsed);
+    // Integrate exponential friction exactly, retaining the gentle idle rotation.
+    globe.current.rotation.x += (velocity.current.x * (1 - decay)) / damping;
+    globe.current.rotation.y +=
+      (velocity.current.y * (1 - decay)) / damping + elapsed * 0.018;
+    velocity.current.multiplyScalar(decay);
   });
   return (
     <group position={[1.85, -0.18, 0]} rotation={[0.05, 0, -0.16]}>
@@ -31,10 +56,12 @@ function Earth() {
           onPointerDown={(event) => {
             if (event.button !== 0 || drag.current) return;
             event.stopPropagation();
+            velocity.current.set(0, 0);
             drag.current = {
               id: event.pointerId,
               x: event.clientX,
               y: event.clientY,
+              time: event.timeStamp,
             };
             (event.target as Element).setPointerCapture(event.pointerId);
           }}
@@ -43,14 +70,27 @@ function Earth() {
             if (!previous || previous.id !== event.pointerId || !globe.current)
               return;
             event.stopPropagation();
-            globe.current.rotation.y += (event.clientX - previous.x) * 0.006;
-            globe.current.rotation.x += (event.clientY - previous.y) * 0.006;
+            const dx = (event.clientX - previous.x) * 0.006;
+            const dy = (event.clientY - previous.y) * 0.006;
+            const elapsed = Math.max(
+              1 / 240,
+              (event.timeStamp - previous.time) / 1000,
+            );
+            globe.current.rotation.y += dx;
+            globe.current.rotation.x += dy;
+            // Smooth noisy pointer samples and cap accidental extreme flicks.
+            velocity.current.lerp(
+              new THREE.Vector2(dy / elapsed, dx / elapsed).clampLength(0, 6),
+              1 - Math.exp(-elapsed / 0.035),
+            );
             previous.x = event.clientX;
             previous.y = event.clientY;
+            previous.time = event.timeStamp;
           }}
           onPointerUp={stopDrag}
           onPointerCancel={stopDrag}
           onLostPointerCapture={() => {
+            if (drag.current) velocity.current.set(0, 0);
             drag.current = null;
           }}
         >
@@ -126,7 +166,7 @@ export default function HeroEarth() {
   return (
     <div
       className="hero-earth"
-      aria-label="Slowly rotating 3D Earth using NASA Blue Marble imagery. Drag to rotate."
+      aria-label="Slowly rotating 3D Earth using NASA Blue Marble imagery. Drag to rotate with momentum."
     >
       {ready && (
         <Canvas
