@@ -1,5 +1,12 @@
 'use client';
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import {
   Canvas,
   useFrame,
@@ -18,6 +25,7 @@ function Earth() {
   } | null>(null);
   // Angular velocity in radians/second; damping is independent of frame rate.
   const velocity = useRef(new THREE.Vector2());
+  const dragSensitivity = 0.004;
   const damping = 1.8;
   const stopDrag = (event: ThreeEvent<PointerEvent>) => {
     if (drag.current?.id !== event.pointerId) return;
@@ -30,9 +38,15 @@ function Earth() {
     drag.current = null;
     (event.target as Element).releasePointerCapture(event.pointerId);
   };
-  const map = useLoader(THREE.TextureLoader, '/assets/earth-map.jpg');
-  map.colorSpace = THREE.SRGBColorSpace;
-  map.anisotropy = 8;
+  const sourceMap = useLoader(THREE.TextureLoader, '/assets/earth-map.jpg');
+  const map = useMemo(() => {
+    const texture = sourceMap.clone();
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.anisotropy = 8;
+    texture.needsUpdate = true;
+    return texture;
+  }, [sourceMap]);
+  useEffect(() => () => map.dispose(), [map]);
   const reduce = useRef(false);
   useEffect(() => {
     reduce.current = window.matchMedia(
@@ -70,8 +84,8 @@ function Earth() {
             if (!previous || previous.id !== event.pointerId || !globe.current)
               return;
             event.stopPropagation();
-            const dx = (event.clientX - previous.x) * 0.006;
-            const dy = (event.clientY - previous.y) * 0.006;
+            const dx = (event.clientX - previous.x) * dragSensitivity;
+            const dy = (event.clientY - previous.y) * dragSensitivity;
             const elapsed = Math.max(
               1 / 240,
               (event.timeStamp - previous.time) / 1000,
@@ -80,7 +94,7 @@ function Earth() {
             globe.current.rotation.x += dy;
             // Smooth noisy pointer samples and cap accidental extreme flicks.
             velocity.current.lerp(
-              new THREE.Vector2(dy / elapsed, dx / elapsed).clampLength(0, 6),
+              new THREE.Vector2(dy / elapsed, dx / elapsed).clampLength(0, 4),
               1 - Math.exp(-elapsed / 0.035),
             );
             previous.x = event.clientX;
@@ -153,14 +167,18 @@ function RealStars({ stars }: { stars: SkyFeature[] }) {
     </points>
   );
 }
+const subscribeToHydration = () => () => {};
 export default function HeroEarth() {
-  const [ready, setReady] = useState(false),
-    [stars, setStars] = useState<SkyFeature[]>([]);
+  const ready = useSyncExternalStore(
+    subscribeToHydration,
+    () => true,
+    () => false,
+  );
+  const [stars, setStars] = useState<SkyFeature[]>([]);
   useEffect(() => {
-    setReady(true);
     fetch('/data/stars.json')
       .then((r) => r.json())
-      .then((d: any) => setStars(d.features))
+      .then((d) => setStars((d as { features: SkyFeature[] }).features))
       .catch(() => {});
   }, []);
   return (
