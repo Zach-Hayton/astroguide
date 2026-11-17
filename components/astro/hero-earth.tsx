@@ -1,13 +1,52 @@
 'use client';
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { Canvas, useFrame, useLoader } from '@react-three/fiber';
+import {
+  Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
+import {
+  Canvas,
+  useFrame,
+  useLoader,
+  type ThreeEvent,
+} from '@react-three/fiber';
 import * as THREE from 'three';
 import { equatorial, starColor, type SkyFeature } from '@/lib/astro/data';
 function Earth() {
   const globe = useRef<THREE.Group>(null);
-  const map = useLoader(THREE.TextureLoader, '/assets/earth-map.jpg');
-  map.colorSpace = THREE.SRGBColorSpace;
-  map.anisotropy = 8;
+  const drag = useRef<{
+    id: number;
+    x: number;
+    y: number;
+    time: number;
+  } | null>(null);
+  // Angular velocity in radians/second; damping is independent of frame rate.
+  const velocity = useRef(new THREE.Vector2());
+  const dragSensitivity = 0.004;
+  const damping = 1.8;
+  const stopDrag = (event: ThreeEvent<PointerEvent>) => {
+    if (drag.current?.id !== event.pointerId) return;
+    // A pause before release dissipates the last flick instead of replaying it.
+    velocity.current.multiplyScalar(
+      Math.exp(-Math.max(0, event.timeStamp - drag.current.time) / 80),
+    );
+    if (event.type === 'pointercancel' || reduce.current)
+      velocity.current.set(0, 0);
+    drag.current = null;
+    (event.target as Element).releasePointerCapture(event.pointerId);
+  };
+  const sourceMap = useLoader(THREE.TextureLoader, '/assets/earth-map.jpg');
+  const map = useMemo(() => {
+    const texture = sourceMap.clone();
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.anisotropy = 8;
+    texture.needsUpdate = true;
+    return texture;
+  }, [sourceMap]);
+  useEffect(() => () => map.dispose(), [map]);
   const reduce = useRef(false);
   useEffect(() => {
     reduce.current = window.matchMedia(
@@ -15,13 +54,60 @@ function Earth() {
     ).matches;
   }, []);
   useFrame((_, dt) => {
-    if (globe.current && !reduce.current)
-      globe.current.rotation.y += Math.min(dt, 0.05) * 0.018;
+    if (!globe.current || drag.current || reduce.current) return;
+    const elapsed = Math.min(dt, 0.05);
+    const decay = Math.exp(-damping * elapsed);
+    // Integrate exponential friction exactly, retaining the gentle idle rotation.
+    globe.current.rotation.x += (velocity.current.x * (1 - decay)) / damping;
+    globe.current.rotation.y +=
+      (velocity.current.y * (1 - decay)) / damping + elapsed * 0.018;
+    velocity.current.multiplyScalar(decay);
   });
   return (
     <group position={[1.85, -0.18, 0]} rotation={[0.05, 0, -0.16]}>
       <group ref={globe} rotation={[0, -1.9, 0]}>
-        <mesh>
+        <mesh
+          onPointerDown={(event) => {
+            if (event.button !== 0 || drag.current) return;
+            event.stopPropagation();
+            velocity.current.set(0, 0);
+            drag.current = {
+              id: event.pointerId,
+              x: event.clientX,
+              y: event.clientY,
+              time: event.timeStamp,
+            };
+            (event.target as Element).setPointerCapture(event.pointerId);
+          }}
+          onPointerMove={(event) => {
+            const previous = drag.current;
+            if (!previous || previous.id !== event.pointerId || !globe.current)
+              return;
+            event.stopPropagation();
+            const dx = (event.clientX - previous.x) * dragSensitivity;
+            const dy = (event.clientY - previous.y) * dragSensitivity;
+            const elapsed = Math.max(
+              1 / 240,
+              (event.timeStamp - previous.time) / 1000,
+            );
+            globe.current.rotation.y += dx;
+            globe.current.rotation.x += dy;
+            // Smooth noisy pointer samples and cap accidental extreme flicks.
+            velocity.current.lerp(
+              new THREE.Vector2(dy / elapsed, dx / elapsed).clampLength(0, 4),
+              1 - Math.exp(-elapsed / 0.035),
+            );
+            previous.x = event.clientX;
+            previous.y = event.clientY;
+            previous.time = event.timeStamp;
+          }}
+          onPointerUp={stopDrag}
+          onPointerCancel={stopDrag}
+          onLostPointerCapture={() => {
+            if (drag.current) velocity.current.set(0, 0);
+            drag.current = null;
+          }}
+        >
           <sphereGeometry args={[2.42, 96, 64]} />
           <meshStandardMaterial map={map} roughness={0.92} metalness={0.03} />
         </mesh>
@@ -81,20 +167,24 @@ function RealStars({ stars }: { stars: SkyFeature[] }) {
     </points>
   );
 }
+const subscribeToHydration = () => () => {};
 export default function HeroEarth() {
-  const [ready, setReady] = useState(false),
-    [stars, setStars] = useState<SkyFeature[]>([]);
+  const ready = useSyncExternalStore(
+    subscribeToHydration,
+    () => true,
+    () => false,
+  );
+  const [stars, setStars] = useState<SkyFeature[]>([]);
   useEffect(() => {
-    setReady(true);
     fetch('/data/stars.json')
       .then((r) => r.json())
-      .then((d: any) => setStars(d.features))
+      .then((d) => setStars((d as { features: SkyFeature[] }).features))
       .catch(() => {});
   }, []);
   return (
     <div
       className="hero-earth"
-      aria-label="Slowly rotating 3D Earth using NASA Blue Marble imagery"
+      aria-label="Slowly rotating 3D Earth using NASA Blue Marble imagery. Drag to rotate with momentum."
     >
       {ready && (
         <Canvas
