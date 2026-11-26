@@ -42,7 +42,6 @@ export default function Home() {
         </div>
         <div className="hero-bottom">
           <span>01 / THE JOURNEY BEGINS</span>
-          <span>ISS · 90 S ORBIT · 51.6° · SCALE EXAGGERATED</span>
           <a href="#destinations">
             A little further <MoveUpRight size={14} />
           </a>

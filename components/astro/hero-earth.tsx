@@ -18,6 +18,8 @@ import { equatorial, starColor, type SkyFeature } from '@/lib/astro/data';
 import HeroISS from './hero-iss';
 function Earth() {
   const globe = useRef<THREE.Group>(null);
+  // Track only user rotation and its momentum; idle spin stays independent.
+  const dragRotation = useRef(new THREE.Euler());
   const drag = useRef<{
     id: number;
     x: number;
@@ -59,9 +61,12 @@ function Earth() {
     const elapsed = Math.min(dt, 0.05);
     const decay = Math.exp(-damping * elapsed);
     // Integrate exponential friction exactly, retaining the gentle idle rotation.
-    globe.current.rotation.x += (velocity.current.x * (1 - decay)) / damping;
-    globe.current.rotation.y +=
-      (velocity.current.y * (1 - decay)) / damping + elapsed * 0.018;
+    const dx = (velocity.current.x * (1 - decay)) / damping;
+    const dy = (velocity.current.y * (1 - decay)) / damping;
+    globe.current.rotation.x += dx;
+    globe.current.rotation.y += dy + elapsed * 0.018;
+    dragRotation.current.x += dx;
+    dragRotation.current.y += dy;
     velocity.current.multiplyScalar(decay);
   });
   return (
@@ -93,6 +98,8 @@ function Earth() {
             );
             globe.current.rotation.y += dx;
             globe.current.rotation.x += dy;
+            dragRotation.current.y += dx;
+            dragRotation.current.x += dy;
             // Smooth noisy pointer samples and cap accidental extreme flicks.
             velocity.current.lerp(
               new THREE.Vector2(dy / elapsed, dx / elapsed).clampLength(0, 4),
@@ -136,7 +143,7 @@ function Earth() {
         />
       </mesh>
       <Suspense fallback={null}>
-        <HeroISS />
+        <HeroISS dragRotation={dragRotation} />
       </Suspense>
     </group>
   );

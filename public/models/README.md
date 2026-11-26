@@ -38,7 +38,9 @@ Original SHA-256:
 The scene centers and scales the model from its bounding box. An illustrative
 circular orbit completes a revolution every 90 seconds, about 60 times faster
 than reality, with a 51.6-degree inclination to Earth's equator. Earth and the
-orbit share the same center and base axial tilt; surface drag and idle spin do
-not drive the orbit. The orbit radius is 3.05 scene units versus Earth's 2.42,
+orbit share the same center and base axial tilt. Earth's drag rotation and release
+momentum steer the orbital frame with a smooth delayed response; idle spin does
+not steer it, and the ISS keeps its own 90-second revolution. This following motion
+is an interaction effect rather than orbital precession. The orbit radius is 3.05 scene units versus Earth's 2.42,
 exaggerating altitude so the enlarged model clears the globe. No live orbital
 elements are used. Reduced-motion preference pauses the ISS at its current phase.
