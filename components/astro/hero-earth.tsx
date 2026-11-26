@@ -15,6 +15,7 @@ import {
 } from '@react-three/fiber';
 import * as THREE from 'three';
 import { equatorial, starColor, type SkyFeature } from '@/lib/astro/data';
+import HeroISS from './hero-iss';
 function Earth() {
   const globe = useRef<THREE.Group>(null);
   const drag = useRef<{
@@ -184,7 +185,7 @@ export default function HeroEarth() {
   return (
     <div
       className="hero-earth"
-      aria-label="Slowly rotating 3D Earth using NASA Blue Marble imagery. Drag to rotate with momentum."
+      aria-label="Slowly rotating 3D Earth using NASA Blue Marble imagery, with an enlarged stationary ISS model. Drag Earth to rotate with momentum."
     >
       {ready && (
         <Canvas
@@ -200,6 +201,9 @@ export default function HeroEarth() {
           />
           <Suspense fallback={null}>
             <Earth />
+          </Suspense>
+          <Suspense fallback={null}>
+            <HeroISS />
           </Suspense>
           <RealStars stars={stars} />
         </Canvas>
