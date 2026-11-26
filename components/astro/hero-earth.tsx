@@ -64,7 +64,7 @@ function Earth() {
     const dx = (velocity.current.x * (1 - decay)) / damping;
     const dy = (velocity.current.y * (1 - decay)) / damping;
     globe.current.rotation.x += dx;
-    globe.current.rotation.y += dy + elapsed * 0.018;
+    globe.current.rotation.y += dy + elapsed * 0.021;
     dragRotation.current.x += dx;
     dragRotation.current.y += dy;
     velocity.current.multiplyScalar(decay);
