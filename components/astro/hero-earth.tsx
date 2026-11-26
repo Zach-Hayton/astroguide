@@ -135,6 +135,9 @@ function Earth() {
           fragmentShader={`varying vec3 n;varying vec3 eye;void main(){float f=pow(1.-abs(dot(normalize(n),normalize(eye))),5.);gl_FragColor=vec4(.1,.3,.8,f*.12);}`}
         />
       </mesh>
+      <Suspense fallback={null}>
+        <HeroISS />
+      </Suspense>
     </group>
   );
 }
@@ -185,7 +188,7 @@ export default function HeroEarth() {
   return (
     <div
       className="hero-earth"
-      aria-label="Slowly rotating 3D Earth using NASA Blue Marble imagery, with an enlarged stationary ISS model. Drag Earth to rotate with momentum."
+      aria-label="Slowly rotating 3D Earth using NASA Blue Marble imagery, with an enlarged ISS orbiting every 90 seconds at a 51.6-degree inclination. Drag Earth to rotate with momentum."
     >
       {ready && (
         <Canvas
@@ -201,9 +204,6 @@ export default function HeroEarth() {
           />
           <Suspense fallback={null}>
             <Earth />
-          </Suspense>
-          <Suspense fallback={null}>
-            <HeroISS />
           </Suspense>
           <RealStars stars={stars} />
         </Canvas>

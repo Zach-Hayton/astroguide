@@ -35,6 +35,10 @@ because the original uses repeated textures.
 Original SHA-256:
 `26dba905b4b7555edbcb0c5f5a61b5c18659f5166076ab27dbb0e64025759fca`
 
-The scene centers and scales the model from its bounding box. Placement is
-stationary and illustrative, and spacecraft size is exaggerated. The model is
-independent of Earth's drag rotation. Orbit playback is a separate next step.
+The scene centers and scales the model from its bounding box. An illustrative
+circular orbit completes a revolution every 90 seconds, about 60 times faster
+than reality, with a 51.6-degree inclination to Earth's equator. Earth and the
+orbit share the same center and base axial tilt; surface drag and idle spin do
+not drive the orbit. The orbit radius is 3.05 scene units versus Earth's 2.42,
+exaggerating altitude so the enlarged model clears the globe. No live orbital
+elements are used. Reduced-motion preference pauses the ISS at its current phase.
