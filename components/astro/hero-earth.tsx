@@ -1,6 +1,7 @@
 'use client';
 import {
   Suspense,
+  lazy,
   useEffect,
   useMemo,
   useRef,
@@ -16,7 +17,8 @@ import {
 import * as THREE from 'three';
 import { equatorial, starColor, type SkyFeature } from '@/lib/astro/data';
 import HeroISS from './hero-iss';
-function Earth() {
+const ISSFocus = lazy(() => import('./iss-focus'));
+function Earth({ onInspect }: { onInspect: () => void }) {
   const globe = useRef<THREE.Group>(null);
   // Track only user rotation and its momentum; idle spin stays independent.
   const dragRotation = useRef(new THREE.Euler());
@@ -143,7 +145,7 @@ function Earth() {
         />
       </mesh>
       <Suspense fallback={null}>
-        <HeroISS dragRotation={dragRotation} />
+        <HeroISS dragRotation={dragRotation} onInspect={onInspect} />
       </Suspense>
     </group>
   );
@@ -186,6 +188,7 @@ export default function HeroEarth() {
     () => false,
   );
   const [stars, setStars] = useState<SkyFeature[]>([]);
+  const [focusOpen, setFocusOpen] = useState(false);
   useEffect(() => {
     fetch('/data/stars.json')
       .then((r) => r.json())
@@ -210,10 +213,22 @@ export default function HeroEarth() {
             color="#e6f2ff"
           />
           <Suspense fallback={null}>
-            <Earth />
+            <Earth onInspect={() => setFocusOpen(true)} />
           </Suspense>
           <RealStars stars={stars} />
         </Canvas>
+      )}
+      <button
+        className="iss-inspect-trigger"
+        aria-haspopup="dialog"
+        onClick={() => setFocusOpen(true)}
+      >
+        Inspect ISS <span aria-hidden="true">↗</span>
+      </button>
+      {focusOpen && (
+        <Suspense fallback={null}>
+          <ISSFocus onClose={() => setFocusOpen(false)} />
+        </Suspense>
       )}
     </div>
   );

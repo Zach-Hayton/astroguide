@@ -35,6 +35,23 @@ because the original uses repeated textures.
 Original SHA-256:
 `26dba905b4b7555edbcb0c5f5a61b5c18659f5166076ab27dbb0e64025759fca`
 
+## Focus model
+
+`iss-detail.glb` is loaded only when inspection opens. It retains all 247,547
+original triangles and uses WebP textures capped at 2048 pixels. Meshopt
+compression and mesh merging reduce the original to 4,914,612 bytes, without
+geometry simplification. Generate it from the original using the same CLI:
+
+```sh
+gltf-transform optimize ISS_stationary.glb iss-detail.glb \
+  --compress meshopt --texture-compress webp --texture-size 2048 \
+  --simplify false --instance false
+```
+
+The focus scene rotates at 0.12 radians/second (about 52 seconds per turn),
+respecting reduced-motion preferences. Figures in its information panel are
+typical real-world values, not live telemetry or the landing-page animation speed.
+
 The scene centers and scales the model from its bounding box. An illustrative
 circular orbit completes a revolution every 90 seconds, about 60 times faster
 than reality, with a 51.6-degree inclination to Earth's equator. Earth and the
