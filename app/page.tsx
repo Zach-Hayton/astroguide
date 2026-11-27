@@ -5,8 +5,6 @@ import Link from '@/components/astro/site-link';
 import {
   ArrowUpRight,
   ArrowRight,
-  Orbit,
-  Sparkles,
   MoveUpRight,
 } from 'lucide-react';
 export default function Home() {
@@ -44,7 +42,6 @@ export default function Home() {
         </div>
         <div className="hero-bottom">
           <span>01 / THE JOURNEY BEGINS</span>
-          <span>NASA BLUE MARBLE · RENDERED EARTH</span>
           <a href="#destinations">
             A little further <MoveUpRight size={14} />
           </a>

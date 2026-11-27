@@ -1,6 +1,7 @@
 'use client';
 import {
   Suspense,
+  lazy,
   useEffect,
   useMemo,
   useRef,
@@ -15,8 +16,12 @@ import {
 } from '@react-three/fiber';
 import * as THREE from 'three';
 import { equatorial, starColor, type SkyFeature } from '@/lib/astro/data';
-function Earth() {
+import HeroISS from './hero-iss';
+const ISSFocus = lazy(() => import('./iss-focus'));
+function Earth({ onInspect }: { onInspect: () => void }) {
   const globe = useRef<THREE.Group>(null);
+  // Track only user rotation and its momentum; idle spin stays independent.
+  const dragRotation = useRef(new THREE.Euler());
   const drag = useRef<{
     id: number;
     x: number;
@@ -58,9 +63,12 @@ function Earth() {
     const elapsed = Math.min(dt, 0.05);
     const decay = Math.exp(-damping * elapsed);
     // Integrate exponential friction exactly, retaining the gentle idle rotation.
-    globe.current.rotation.x += (velocity.current.x * (1 - decay)) / damping;
-    globe.current.rotation.y +=
-      (velocity.current.y * (1 - decay)) / damping + elapsed * 0.018;
+    const dx = (velocity.current.x * (1 - decay)) / damping;
+    const dy = (velocity.current.y * (1 - decay)) / damping;
+    globe.current.rotation.x += dx;
+    globe.current.rotation.y += dy + elapsed * 0.021;
+    dragRotation.current.x += dx;
+    dragRotation.current.y += dy;
     velocity.current.multiplyScalar(decay);
   });
   return (
@@ -92,6 +100,8 @@ function Earth() {
             );
             globe.current.rotation.y += dx;
             globe.current.rotation.x += dy;
+            dragRotation.current.y += dx;
+            dragRotation.current.x += dy;
             // Smooth noisy pointer samples and cap accidental extreme flicks.
             velocity.current.lerp(
               new THREE.Vector2(dy / elapsed, dx / elapsed).clampLength(0, 4),
@@ -134,6 +144,9 @@ function Earth() {
           fragmentShader={`varying vec3 n;varying vec3 eye;void main(){float f=pow(1.-abs(dot(normalize(n),normalize(eye))),5.);gl_FragColor=vec4(.1,.3,.8,f*.12);}`}
         />
       </mesh>
+      <Suspense fallback={null}>
+        <HeroISS dragRotation={dragRotation} onInspect={onInspect} />
+      </Suspense>
     </group>
   );
 }
@@ -175,6 +188,7 @@ export default function HeroEarth() {
     () => false,
   );
   const [stars, setStars] = useState<SkyFeature[]>([]);
+  const [focusOpen, setFocusOpen] = useState(false);
   useEffect(() => {
     fetch('/data/stars.json')
       .then((r) => r.json())
@@ -184,7 +198,7 @@ export default function HeroEarth() {
   return (
     <div
       className="hero-earth"
-      aria-label="Slowly rotating 3D Earth using NASA Blue Marble imagery. Drag to rotate with momentum."
+      aria-label="Slowly rotating 3D Earth using NASA Blue Marble imagery, with an enlarged ISS orbiting every 90 seconds at a 51.6-degree inclination. Drag Earth to rotate with momentum."
     >
       {ready && (
         <Canvas
@@ -199,10 +213,22 @@ export default function HeroEarth() {
             color="#e6f2ff"
           />
           <Suspense fallback={null}>
-            <Earth />
+            <Earth onInspect={() => setFocusOpen(true)} />
           </Suspense>
           <RealStars stars={stars} />
         </Canvas>
+      )}
+      <button
+        className="iss-inspect-trigger"
+        aria-haspopup="dialog"
+        onClick={() => setFocusOpen(true)}
+      >
+        Inspect ISS <span aria-hidden="true">↗</span>
+      </button>
+      {focusOpen && (
+        <Suspense fallback={null}>
+          <ISSFocus onClose={() => setFocusOpen(false)} />
+        </Suspense>
       )}
     </div>
   );

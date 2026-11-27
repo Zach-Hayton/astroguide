@@ -2143,3 +2143,97 @@ select:focus-visible {
 .location-results button {width:100%;text-align:left;padding:12px 14px;border:1px solid #294052;background:#0a1520;color:#d9e7ef;border-radius:8px;cursor:pointer}
 .location-results button:hover,.location-results button:focus-visible {background:#183242;border-color:#9acabb}
 .location-search button:disabled {opacity:.55;cursor:wait}
+
+/* ISS inspection: a modal scene with its own lighting and detailed asset. */
+.iss-inspect-trigger {
+  position: absolute;
+  right: 9%;
+  bottom: 33%;
+  padding: 9px 14px;
+  border: 1px solid #496678;
+  border-radius: 5px;
+  background: #09131ed9;
+  color: #ccecf5;
+  font-size: 12px;
+  cursor: pointer;
+}
+.iss-inspect-trigger:hover { border-color: #a9dfff; }
+.iss-inspect-trigger:focus-visible, .iss-focus button:focus-visible, .iss-focus a:focus-visible {
+  outline: 2px solid #a9dfff;
+  outline-offset: 4px;
+}
+.iss-focus {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  padding: 0;
+  width: min(1200px, 94vw);
+  max-width: none;
+  max-height: 90dvh;
+  border: 1px solid #324855;
+  border-radius: 12px;
+  background: #080f18;
+  color: #dfebee;
+  box-shadow: 0 30px 120px #000b;
+  overflow: auto;
+}
+.iss-focus::backdrop { background: #01050bd9; backdrop-filter: blur(5px); }
+.iss-focus-close {
+  position: absolute;
+  right: 16px;
+  top: 16px;
+  z-index: 2;
+  width: 36px;
+  height: 36px;
+  border: 1px solid #3e5563;
+  border-radius: 50%;
+  color: #d2e6ed;
+  background: #0a1520;
+  cursor: pointer;
+}
+.iss-focus-layout { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(320px, 1fr); }
+.iss-focus-visual {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 32px;
+  background: radial-gradient(ellipse at center, #183049 0%, #0a1725 45%, #050b12 80%);
+}
+.iss-focus-visual > .eyebrow { color: #83a9be; font-size: 10px; letter-spacing: 2px; }
+.iss-focus-canvas { position: relative; flex: 1; min-height: 460px; }
+.iss-focus-canvas canvas { display: block; }
+.iss-focus-status { position: absolute; inset: 45% 20px auto; text-align: center; color: #b6dce9; font-size: 13px; z-index: 1; }
+.iss-focus-credit { color: #7698ae; font-size: 11px; letter-spacing: 1px; }
+.iss-focus-info { padding: 56px 32px 32px; border-left: 1px solid #273b49; }
+.iss-focus-info > .eyebrow { font-size: 10px; letter-spacing: 2px; color: #93cacd; }
+.iss-focus-info h2 { font-size: clamp(28px, 3vw, 40px); font-weight: 400; line-height: 1.12; letter-spacing: -1.5px; margin: 18px 0; }
+.iss-focus-info > p:not(.eyebrow) { font-size: 13px; line-height: 1.8; color: #9eb2bf; }
+.iss-focus-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 20px 16px; margin: 26px 0; }
+.iss-focus-stats > div:first-child { grid-column: 1 / -1; padding: 18px; background: #102131; border-left: 2px solid #9bd9f4; }
+.iss-focus-stats dt { font-size: 10px; color: #8da6b7; letter-spacing: .6px; }
+.iss-focus-stats dd { font-size: 24px; margin: 6px 0 0; color: #e4f3f7; }
+.iss-focus-stats dd small { font-size: 12px; color: #a9cadb; }
+.iss-focus-stats .iss-speed-note { display: block; font-size: 11px; color: #86acbf; }
+.iss-focus-info h3 { font-size: 14px; margin: 26px 0 14px; font-weight: 500; }
+.iss-focus-info ul { padding-left: 17px; color: #a4b7c4; font-size: 12px; line-height: 1.8; }
+.iss-focus-info li { padding-left: 3px; margin: 9px 0; }
+.iss-focus-info .iss-focus-note { font-size: 11px !important; padding-top: 18px; border-top: 1px solid #263b4a; }
+.iss-focus-info > a { display: inline-block; color: #a1d8eb; font-size: 12px; margin-top: 16px; }
+@media (max-width: 700px) {
+  .iss-inspect-trigger { top: 95px; bottom: auto; right: 18px; }
+  .iss-focus { width: 94vw; max-height: 94dvh; }
+  .iss-focus-layout { grid-template-columns: 1fr; }
+  .iss-focus-visual { padding: 24px 20px 18px; }
+  .iss-focus-canvas { min-height: 300px; height: 300px; flex: none; }
+  .iss-focus-info { border-left: 0; border-top: 1px solid #273b49; padding: 24px; }
+  .iss-focus-info h2 { font-size: 32px; }
+  .iss-focus-close { position: sticky; float: right; top: 10px; margin: 10px 10px -46px 0; }
+}
+.iss-model-retry { margin-top: 12px; padding: 8px 14px; border: 1px solid #709ab1; border-radius: 4px; color: #c6e9f6; background: #142b3e; cursor: pointer; }
+.iss-focus-canvas { margin: 0; }
+.iss-focus-canvas canvas { cursor: grab; touch-action: none; }
+.iss-focus-canvas canvas:active { cursor: grabbing; }
+.iss-view-controls { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; white-space: nowrap; }
+.iss-view-controls button { min-width: 36px; min-height: 36px; padding: 6px 12px; border: 1px solid #506f83; border-radius: 5px; background: #091725dd; color: #d5edf8; font-size: 13px; cursor: pointer; }
+.iss-view-controls button:hover { background: #1b354a; }
+.iss-view-controls button:disabled { opacity: .4; cursor: wait; }

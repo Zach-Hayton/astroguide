@@ -220,6 +220,16 @@ export default function Science() {
           <h2>Image and texture credits</h2>
           <ul>
             <li>
+              <A href="https://solarsystem.nasa.gov/gltf_embed/2378/">
+                ISS 3D model
+              </A>{' '}
+              — NASA model supplied as ISS_stationary.glb. Geometry and textures
+              reduced for the web. Illustrative circular orbit inclined 51.6° to
+              Earth’s equator, accelerated to one revolution every 90 seconds
+              (roughly 60× real speed). Spacecraft size and orbital altitude are
+              exaggerated for visibility. This is not a live orbital position.
+            </li>
+            <li>
               <A href="https://science.nasa.gov/earth/earth-observatory/earths-limb-with-a-crescent-moon-150240/">
                 Earth’s limb
               </A>{' '}
