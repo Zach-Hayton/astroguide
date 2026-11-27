@@ -37,19 +37,37 @@ Original SHA-256:
 
 ## Focus model
 
-`iss-detail.glb` is loaded only when inspection opens. It retains all 247,547
-original triangles and uses WebP textures capped at 2048 pixels. Meshopt
-compression and mesh merging reduce the original to 4,914,612 bytes, without
-geometry simplification. Generate it from the original using the same CLI:
+`iss-detail.glb` is loaded only when inspection opens. It restores the original
+247,547 triangles, floating-point vertex attributes, and all original texture
+dimensions and visible pixels. Textures use lossless WebP and geometry uses
+Meshopt byte compression without quantization, simplification, or mesh merging.
+The result is 22,771,508 bytes, compared with the previous 4,914,612-byte focus
+asset. The landing-page model remains the smaller 2.95 MB version.
+The original's 26 textures are at most 1024 pixels per side, so the former 2048
+cap did not reduce their dimensions. Restored texture quality comes from removing
+lossy WebP compression; no invented or upscaled texture detail is added.
+
+To reproduce, install tooling in an ignored directory, leaving application
+dependencies and the lockfile unchanged. Run the script from that directory
+so its imports resolve against those tooling dependencies:
 
 ```sh
-gltf-transform optimize ISS_stationary.glb iss-detail.glb \
-  --compress meshopt --texture-compress webp --texture-size 2048 \
-  --simplify false --instance false
+npm install --prefix outputs/model-tools @gltf-transform/cli@4.2.1
+cp scripts/restore-iss-detail.mjs outputs/model-tools/restore-iss-detail.mjs
+node outputs/model-tools/restore-iss-detail.mjs /path/to/ISS_stationary.glb public/models/iss-detail.glb
 ```
 
-The focus scene rotates at 0.12 radians/second (about 52 seconds per turn),
-respecting reduced-motion preferences. Figures in its information panel are
+The script verifies original vertex values, triangle shapes and winding, texture
+dimensions, and decoded visible pixels. Meshopt may cyclically rotate a triangle's
+indices, preserving its shape and winding. Fully transparent RGB values may be
+discarded by WebP, without affecting visible pixels.
+
+The focus scene rotates at 0.12 radians/second (about 52 seconds per turn), pausing
+during interaction and respecting reduced-motion preferences. Drag rotates the
+view; wheel or two-finger gestures zoom. Panning is disabled to keep the station
+centered. Zoom buttons and Reset view are keyboard accessible. Inspection uses
+up to 2.5× device pixel ratio and maximum supported texture anisotropy.
+Figures in its information panel are
 typical real-world values, not live telemetry or the landing-page animation speed.
 
 The scene centers and scales the model from its bounding box. An illustrative

@@ -7,16 +7,28 @@ import {
   useMemo,
   useRef,
   useState,
+  type ComponentRef,
+  type RefObject,
   type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { Canvas, useFrame, useLoader } from '@react-three/fiber';
-import { Box3, Group, Vector3 } from 'three';
+import { Canvas, useFrame, useLoader, useThree } from '@react-three/fiber';
+import { OrbitControls } from '@react-three/drei';
+import { Box3, Group, Mesh, Vector3 } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 
-function DetailedISS({ onReady }: { onReady: () => void }) {
-  const gltf = useLoader(GLTFLoader, '/models/iss-detail.glb', (loader) =>
+const DETAIL_MODEL_URL = '/models/iss-detail.glb?v=original-detail';
+
+function DetailedISS({
+  onReady,
+  interacting,
+}: {
+  onReady: () => void;
+  interacting: RefObject<boolean>;
+}) {
+  const renderer = useThree((state) => state.gl);
+  const gltf = useLoader(GLTFLoader, DETAIL_MODEL_URL, (loader) =>
     loader.setMeshoptDecoder(MeshoptDecoder),
   );
   const rotation = useRef<Group>(null);
@@ -32,6 +44,30 @@ function DetailedISS({ onReady }: { onReady: () => void }) {
     };
   }, [gltf]);
   useEffect(() => {
+    // Preserve fine panel lines when a textured surface is viewed at an angle.
+    const anisotropy = renderer.capabilities.getMaxAnisotropy();
+    scene.traverse((object) => {
+      if (!(object instanceof Mesh)) return;
+      for (const material of Array.isArray(object.material)
+        ? object.material
+        : [object.material]) {
+        for (const key of [
+          'map',
+          'normalMap',
+          'roughnessMap',
+          'metalnessMap',
+          'aoMap',
+        ] as const) {
+          const texture = material[key];
+          if (texture) {
+            texture.anisotropy = anisotropy;
+            texture.needsUpdate = true;
+          }
+        }
+      }
+    });
+  }, [scene, renderer]);
+  useEffect(() => {
     const media = window.matchMedia('(prefers-reduced-motion: reduce)');
     const update = () => {
       reduce.current = media.matches;
@@ -42,7 +78,7 @@ function DetailedISS({ onReady }: { onReady: () => void }) {
     return () => media.removeEventListener('change', update);
   }, [onReady]);
   useFrame((_, dt) => {
-    if (rotation.current && !reduce.current)
+    if (rotation.current && !reduce.current && !interacting.current)
       rotation.current.rotation.y += dt * 0.12;
   });
   return (
@@ -71,7 +107,7 @@ class ModelBoundary extends Component<
         <button
           className="iss-model-retry"
           onClick={() => {
-            useLoader.clear(GLTFLoader, '/models/iss-detail.glb');
+            useLoader.clear(GLTFLoader, DETAIL_MODEL_URL);
             this.setState({ failed: false });
           }}
         >
@@ -87,6 +123,8 @@ class ModelBoundary extends Component<
 export default function ISSFocus({ onClose }: { onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [loaded, setLoaded] = useState(false);
+  const controls = useRef<ComponentRef<typeof OrbitControls>>(null);
+  const interacting = useRef(false);
   useEffect(() => {
     const previous = document.activeElement;
     const overflow = document.body.style.overflow;
@@ -138,7 +176,7 @@ export default function ISSFocus({ onClose }: { onClose: () => void }) {
           <p className="eyebrow">01 / STRUCTURE STUDY</p>
           <figure
             className="iss-focus-canvas"
-            aria-label="Detailed 3D International Space Station rotating slowly in place"
+            aria-label="Detailed 3D International Space Station. Drag to rotate; scroll or pinch to zoom."
           >
             <ModelBoundary>
               {!loaded && (
@@ -147,7 +185,7 @@ export default function ISSFocus({ onClose }: { onClose: () => void }) {
                 </output>
               )}
               <Canvas
-                dpr={[1, 1.75]}
+                dpr={[1, 2.5]}
                 camera={{ position: [0, 0, 7], fov: 40 }}
                 gl={{ alpha: true, antialias: true }}
               >
@@ -159,13 +197,61 @@ export default function ISSFocus({ onClose }: { onClose: () => void }) {
                   color="#a9dfff"
                 />
                 <Suspense fallback={null}>
-                  <DetailedISS onReady={() => setLoaded(true)} />
+                  <DetailedISS
+                    onReady={() => setLoaded(true)}
+                    interacting={interacting}
+                  />
                 </Suspense>
+                <OrbitControls
+                  ref={controls}
+                  makeDefault
+                  enablePan={false}
+                  enableDamping
+                  dampingFactor={0.08}
+                  rotateSpeed={0.65}
+                  zoomSpeed={0.7}
+                  minDistance={2.5}
+                  maxDistance={14}
+                  onStart={() => {
+                    interacting.current = true;
+                  }}
+                  onEnd={() => {
+                    interacting.current = false;
+                  }}
+                />
               </Canvas>
             </ModelBoundary>
+            <div className="iss-view-controls" aria-label="ISS view controls">
+              <button
+                disabled={!loaded}
+                aria-label="Zoom in"
+                onClick={() => {
+                  controls.current?.dollyIn(0.8);
+                  controls.current?.update();
+                }}
+              >
+                +
+              </button>
+              <button
+                disabled={!loaded}
+                aria-label="Zoom out"
+                onClick={() => {
+                  controls.current?.dollyOut(0.8);
+                  controls.current?.update();
+                }}
+              >
+                −
+              </button>
+              <button
+                disabled={!loaded}
+                onClick={() => controls.current?.reset()}
+              >
+                Reset view
+              </button>
+            </div>
           </figure>
           <p className="iss-focus-credit">
-            NASA 3D model · Detailed inspection view
+            Drag to rotate · Scroll or pinch to zoom · NASA 3D model
           </p>
         </div>
         <section className="iss-focus-info">

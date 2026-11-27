@@ -2230,3 +2230,10 @@ select:focus-visible {
   .iss-focus-close { position: sticky; float: right; top: 10px; margin: 10px 10px -46px 0; }
 }
 .iss-model-retry { margin-top: 12px; padding: 8px 14px; border: 1px solid #709ab1; border-radius: 4px; color: #c6e9f6; background: #142b3e; cursor: pointer; }
+.iss-focus-canvas { margin: 0; }
+.iss-focus-canvas canvas { cursor: grab; touch-action: none; }
+.iss-focus-canvas canvas:active { cursor: grabbing; }
+.iss-view-controls { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; white-space: nowrap; }
+.iss-view-controls button { min-width: 36px; min-height: 36px; padding: 6px 12px; border: 1px solid #506f83; border-radius: 5px; background: #091725dd; color: #d5edf8; font-size: 13px; cursor: pointer; }
+.iss-view-controls button:hover { background: #1b354a; }
+.iss-view-controls button:disabled { opacity: .4; cursor: wait; }
